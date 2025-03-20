@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.endpoints import query, upload, delete, files, health
 
-app = FastAPI(title="Neo4j PDF RAG API")
+app = FastAPI(title="AI Generative Question V2")
 
 app.add_middleware(
     CORSMiddleware,

@@ -12,8 +12,8 @@ class UploadResponse(BaseModel):
     document_count: int
     message: str
 
-class DeleteRequest(BaseModel):
-    filename: str
+class DeleteByNameRequest(BaseModel):
+    name: str
     delete_file: bool = False
 
 class DeleteResponse(BaseModel):

@@ -5,32 +5,158 @@ from langchain_community.vectorstores import Neo4jVector
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from core.config import OLLAMA_HOST, OLLAMA_MODEL
-
-def delete_data_from_neo4j(filename, graph):
-    result = graph.query(
-        """
-        MATCH (d:Document) WHERE d.source_file = $filename
-        DETACH DELETE d RETURN count(d) as deleted_count
-        """, {"filename": filename}
-    )
-    return result[0]["deleted_count"] if result else 0
+from services.llm_services import LLMService
+from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException
 
 def query_rag_system(question, vector_retriever, graph):
-    
     retrieved_docs = vector_retriever.invoke(question)
-    context = "\n\n".join(doc.page_content for doc in retrieved_docs)
+    formatted_context = "\n\n".join(doc.page_content for doc in retrieved_docs)
+
+    is_mcq = any(keyword in question.lower() for keyword in ['soal', 'pilihan ganda', 'mcq', 'multiple choice'])
     
-    template = """Answer the question based only on the following context:
-    {context}
+    llm_service = LLMService()
     
-    Question: {question}
+    try:
+        if is_mcq:
+            response = llm_service.generate_mcq(question, formatted_context)
+        else:
+            response = llm_service.generate_json_response(question, formatted_context)
+        
+        return {
+            "status": "success",
+            "query": question,
+            "response": response,
+            "metadata": {
+                "model": llm_service.model,
+                "document_chunks": len(retrieved_docs),
+                "type": "mcq" if is_mcq else "general"
+            }
+        }
+    except Exception as e:
+        return {
+            "status": "error", 
+            "message": str(e)
+        }
+        
+def query_rag_mcq(question, vector_retriever, graph):
+    retrieved_docs = vector_retriever.invoke(question)
+    formatted_context = "\n\n".join(doc.page_content for doc in retrieved_docs)
+
+    is_mcq = any(keyword in question.lower() for keyword in ['soal', 'pilihan ganda', 'mcq', 'multiple choice'])
     
-    Answer:"""
+    llm_service = LLMService()
     
-    prompt = ChatPromptTemplate.from_template(template)
-    llm = ChatOllama(model=OLLAMA_MODEL, base_url=OLLAMA_HOST, temperature=0)
-    chain = prompt | llm | StrOutputParser()
+    try:
+        if is_mcq:
+            response = llm_service.generate_mcq(question, formatted_context)
+        else:
+            response = llm_service.generate_json_response(question, formatted_context)
+        
+        return {
+            "status": "success",
+            "query": question,
+            "response": response,
+            "metadata": {
+                "model": llm_service.model,
+                "document_chunks": len(retrieved_docs),
+                "type": "mcq" if is_mcq else "general"
+            }
+        }
+    except Exception as e:
+        return {
+            "status": "error", 
+            "message": str(e)
+        }
+        
+def delete_data_from_neo4j(name, graph):
+    """
+    Delete data from Neo4j database based on a name/keyword.
     
-    response = chain.invoke({"context": context, "question": question})
-    logging.info(f"Generated answer")
-    return response
+    Args:
+        name (str): The name or keyword to match for deletion
+        graph: Neo4j graph connection object
+    
+    Returns:
+        int: Number of nodes deleted
+    """
+    logging.info(f"Attempting to delete data related to: {name}")
+    
+    try:
+        # First, check what nodes exist with this name
+        check_query = """
+        MATCH (n)
+        WHERE toLower(n.name) CONTAINS toLower($name) OR 
+              toLower(n.id) CONTAINS toLower($name) OR
+              toLower(n.text) CONTAINS toLower($name)
+        RETURN n.name, n.id, labels(n) as labels
+        LIMIT 10
+        """
+        
+        check_result = graph.query(check_query, {"name": name})
+        logging.info(f"Found {len(check_result)} sample nodes matching '{name}':")
+        for node in check_result:
+            logging.info(f"  - {node}")
+        
+        # Count nodes to delete
+        count_query = """
+        MATCH (n)
+        WHERE toLower(n.name) CONTAINS toLower($name) OR 
+              toLower(n.id) CONTAINS toLower($name) OR
+              toLower(n.text) CONTAINS toLower($name)
+        RETURN count(n) as count
+        """
+        
+        count_result = graph.query(count_query, {"name": name})
+        nodes_to_delete = count_result[0]["count"] if count_result else 0
+        
+        if nodes_to_delete == 0:
+            logging.info(f"No nodes found matching: {name}")
+            return 0
+            
+        # Delete relationships first
+        relationships_query = """
+        MATCH (n)-[r]-(m)
+        WHERE toLower(n.name) CONTAINS toLower($name) OR 
+              toLower(n.id) CONTAINS toLower($name) OR
+              toLower(n.text) CONTAINS toLower($name)
+        DELETE r
+        """
+        
+        graph.query(relationships_query, {"name": name})
+        logging.info(f"Deleted relationships connected to nodes matching: {name}")
+        
+        # Delete nodes
+        delete_query = """
+        MATCH (n)
+        WHERE toLower(n.name) CONTAINS toLower($name) OR 
+              toLower(n.id) CONTAINS toLower($name) OR
+              toLower(n.text) CONTAINS toLower($name)
+        DELETE n
+        """
+        
+        graph.query(delete_query, {"name": name})
+        logging.info(f"Successfully deleted {nodes_to_delete} nodes matching: {name}")
+        
+        # Verify deletion
+        verify_query = """
+        MATCH (n)
+        WHERE toLower(n.name) CONTAINS toLower($name) OR 
+              toLower(n.id) CONTAINS toLower($name) OR
+              toLower(n.text) CONTAINS toLower($name)
+        RETURN count(n) as remaining
+        """
+        
+        verify_result = graph.query(verify_query, {"name": name})
+        remaining = verify_result[0]["remaining"] if verify_result else 0
+        
+        if remaining > 0:
+            logging.warning(f"Deletion incomplete. {remaining} nodes still remain.")
+        else:
+            logging.info("Deletion verified. No matching nodes remain.")
+        
+        return nodes_to_delete - remaining
+        
+    except Exception as e:
+        logging.error(f"Error deleting data for '{name}': {str(e)}")
+        raise

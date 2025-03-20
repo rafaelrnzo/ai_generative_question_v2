@@ -8,5 +8,5 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:latest")
 NEO4J_URL = os.getenv("NEO4J_URL", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "admin.admin")
-UPLOAD_DIR = "uploaded_pdfs"
+UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)

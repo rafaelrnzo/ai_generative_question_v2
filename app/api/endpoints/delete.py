@@ -1,17 +1,34 @@
-from fastapi import APIRouter, Depends
-from models.schemas import DeleteRequest, DeleteResponse
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from models.schemas import DeleteResponse
 from services.neo4j_operations import delete_data_from_neo4j
-from core.config import UPLOAD_DIR
 from core.dependencies import get_graph
+import logging
 
-import os
+class DeleteRequest(BaseModel):
+    filename: str  # Keep the original field name
+    delete_file: bool = False
 
 router = APIRouter(prefix="/delete", tags=["delete"])
 
 @router.post("/", response_model=DeleteResponse)
 async def delete_data(request: DeleteRequest, graph=Depends(get_graph)):
-    deleted_count = delete_data_from_neo4j(request.filename, graph)
-    file_path = os.path.join(UPLOAD_DIR, request.filename)
-    if request.delete_file and os.path.exists(file_path):
-        os.remove(file_path)
-    return DeleteResponse(message=f"Deleted {deleted_count} nodes", deleted_nodes=deleted_count)
+    try:
+        logging.info(f"Delete request received for: {request.filename}")
+        
+        deleted_count = delete_data_from_neo4j(request.filename, graph)
+        
+        if deleted_count == 0:
+            logging.warning(f"No nodes found for deletion with keyword: {request.filename}")
+            return DeleteResponse(
+                message=f"No nodes found matching '{request.filename}'", 
+                deleted_nodes=0
+            )
+        
+        return DeleteResponse(
+            message=f"Successfully deleted {deleted_count} nodes related to '{request.filename}'", 
+            deleted_nodes=deleted_count
+        )
+    except Exception as e:
+        logging.error(f"Error during deletion: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error during deletion: {str(e)}")
