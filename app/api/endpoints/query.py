@@ -1,13 +1,67 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
-from models.schemas import QueryRequest
+from models.schemas import QueryRequest, EssayRequest
 from core.dependencies import get_graph, get_vector_retriever
 from services.neo4j_operations import query_rag_system
 from services.llm_services import LLMService
+from services.essay_services import EssayService
 import re 
 
 router = APIRouter(prefix="", tags=["query"])
 
+
+@router.post("/query-essay")
+async def query_essay(request: EssayRequest,  graph=Depends(get_graph), vector_retriever=Depends(get_vector_retriever)):
+    try:
+        num_essays = 1
+        num_match = re.search(r'(\d+)\s*(?:soal|pertanyaan|essay|question)', request.question, re.IGNORECASE)
+        if num_match:
+            num_essays = int(num_match.group(1))
+            print(f"Detected request for {num_essays} essays")
+        
+        language = getattr(request, 'language', "english")
+        
+        essay_service = EssayService()
+        
+        context = f"The user's request is: {request.question}"
+        
+        essay_response = essay_service.generate_essays(
+            request.question, 
+            context, 
+            num_essays,
+            language
+        )
+        
+        if not essay_response or essay_response["total_questions"] == 0:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "status": "error",
+                    "message": "Failed to generate valid essay questions."
+                }
+            )
+            
+        return JSONResponse(content={
+            "status": "success",
+            "query": request.question,
+            "language": language,
+            "response": essay_response,
+            "metadata": {
+                "model": essay_service.model,
+                "type": "essay"
+            }
+        })
+            
+    except Exception as e:
+        import traceback
+        trace = traceback.format_exc()
+        print(f"Error in query_essay: {str(e)}")
+        print(f"Traceback: {trace}")
+        return JSONResponse(
+            status_code=500, 
+            content={"status": "error", "message": str(e), "trace": trace if trace else None}
+        )
+               
 @router.post("/query-json")
 async def query_json(request: QueryRequest, graph=Depends(get_graph), vector_retriever=Depends(get_vector_retriever)):
     try:
@@ -16,7 +70,6 @@ async def query_json(request: QueryRequest, graph=Depends(get_graph), vector_ret
         if hasattr(request, 'collection_name') and collection_name:
             docs = vector_retriever.retrieve_docs(request.question, collection_name)
             
-            # Check if no relevant documents were found
             if not docs:
                 return JSONResponse(
                     status_code=400,
@@ -59,7 +112,6 @@ async def query_json(request: QueryRequest, graph=Depends(get_graph), vector_ret
             else:
                 json_response = llm_service.generate_json_response(request.question, formatted_context)
                 
-                # Check if response is None or null
                 if json_response is None:
                     return JSONResponse(
                         status_code=400,

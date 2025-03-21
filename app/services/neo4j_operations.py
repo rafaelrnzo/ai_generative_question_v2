@@ -70,20 +70,9 @@ def query_rag_mcq(question, vector_retriever, graph):
         }
         
 def delete_data_from_neo4j(name, graph):
-    """
-    Delete data from Neo4j database based on a name/keyword.
-    
-    Args:
-        name (str): The name or keyword to match for deletion
-        graph: Neo4j graph connection object
-    
-    Returns:
-        int: Number of nodes deleted
-    """
     logging.info(f"Attempting to delete data related to: {name}")
     
     try:
-        # First, check what nodes exist with this name
         check_query = """
         MATCH (n)
         WHERE toLower(n.name) CONTAINS toLower($name) OR 
@@ -98,7 +87,6 @@ def delete_data_from_neo4j(name, graph):
         for node in check_result:
             logging.info(f"  - {node}")
         
-        # Count nodes to delete
         count_query = """
         MATCH (n)
         WHERE toLower(n.name) CONTAINS toLower($name) OR 
@@ -114,7 +102,6 @@ def delete_data_from_neo4j(name, graph):
             logging.info(f"No nodes found matching: {name}")
             return 0
             
-        # Delete relationships first
         relationships_query = """
         MATCH (n)-[r]-(m)
         WHERE toLower(n.name) CONTAINS toLower($name) OR 
@@ -126,7 +113,6 @@ def delete_data_from_neo4j(name, graph):
         graph.query(relationships_query, {"name": name})
         logging.info(f"Deleted relationships connected to nodes matching: {name}")
         
-        # Delete nodes
         delete_query = """
         MATCH (n)
         WHERE toLower(n.name) CONTAINS toLower($name) OR 
@@ -138,7 +124,6 @@ def delete_data_from_neo4j(name, graph):
         graph.query(delete_query, {"name": name})
         logging.info(f"Successfully deleted {nodes_to_delete} nodes matching: {name}")
         
-        # Verify deletion
         verify_query = """
         MATCH (n)
         WHERE toLower(n.name) CONTAINS toLower($name) OR 

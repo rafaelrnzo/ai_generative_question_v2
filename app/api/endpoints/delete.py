@@ -6,7 +6,7 @@ from core.dependencies import get_graph
 import logging
 
 class DeleteRequest(BaseModel):
-    filename: str  # Keep the original field name
+    filename: str
     delete_file: bool = False
 
 router = APIRouter(prefix="/delete", tags=["delete"])
