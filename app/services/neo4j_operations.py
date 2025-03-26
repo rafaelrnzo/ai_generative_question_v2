@@ -8,6 +8,7 @@ from core.config import OLLAMA_HOST, OLLAMA_MODEL
 from services.llm_services import LLMService
 from fastapi.responses import JSONResponse
 from fastapi import FastAPI, HTTPException
+from services.essay_services import EssayService
 
 def query_rag_system(question, vector_retriever, graph):
     retrieved_docs = vector_retriever.invoke(question)
@@ -16,12 +17,13 @@ def query_rag_system(question, vector_retriever, graph):
     is_mcq = any(keyword in question.lower() for keyword in ['soal', 'pilihan ganda', 'mcq', 'multiple choice'])
     
     llm_service = LLMService()
+    essay_service = EssayService()
     
     try:
         if is_mcq:
             response = llm_service.generate_mcq(question, formatted_context)
         else:
-            response = llm_service.generate_json_response(question, formatted_context)
+            response = essay_service.generate_essay(question, formatted_context)  
         
         return {
             "status": "success",
@@ -30,7 +32,39 @@ def query_rag_system(question, vector_retriever, graph):
             "metadata": {
                 "model": llm_service.model,
                 "document_chunks": len(retrieved_docs),
-                "type": "mcq" if is_mcq else "general"
+                "type": "mcq" if is_mcq else "Essay"
+            }
+        }
+    except Exception as e:
+        return {
+            "status": "error", 
+            "message": str(e)
+        }
+        
+def query_essay(question, vector_retriever, graph):
+    retrieved_docs = vector_retriever.invoke(question)
+    formatted_context = "\n\n".join(doc.page_content for doc in retrieved_docs)
+
+    is_mcq = any(keyword in question.lower() for keyword in ['soal', 'pilihan ganda', 'mcq', 'multiple choice'])
+    is_essay = any(keyword in question.lower() for keyword in ['soal', 'essay', 'pertanyaan'])
+    
+    llm_service = LLMService()
+    essay_service = EssayService()
+    
+    try:
+        if is_essay:
+            response = essay_service.generate_essay(question, formatted_context)
+        else:
+            pass
+        
+        return {
+            "status": "success",
+            "query": question,
+            "response": response,
+            "metadata": {
+                "model": essay_service.model,
+                "document_chunks": len(retrieved_docs),
+                "type": "Essay" if is_essay else "General"
             }
         }
     except Exception as e:

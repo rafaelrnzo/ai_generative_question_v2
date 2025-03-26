@@ -22,6 +22,7 @@ class LLMService:
         - Setiap soal HARUS diikuti oleh baris "Jawaban: X" di mana X adalah pilihan yang benar (A, B, C, atau D).
         - Format ini HARUS konsisten untuk SEMUA {num_questions} soal.
         - SELALU tulis semua {num_questions} soal yang diminta.
+        - Tolong pastikan setiap jawaban yang diberikan berbeda tidak semua ada di A harus ada di A B C D
 
         **Format yang HARUS DIIKUTI:**
         
