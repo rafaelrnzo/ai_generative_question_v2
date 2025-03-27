@@ -17,36 +17,32 @@ class EssayService:
         return f"""Anda adalah seorang **dosen berpengalaman dalam bidang {context}**.
             Buatlah **{num_questions} soal ESSAY** berdasarkan permintaan berikut:
 
-            📌 **Instruksi WAJIB untuk format output:**  
+            **Instruksi WAJIB untuk format output:**  
             - **Hanya buat soal ESSAY (bukan pilihan ganda).**  
             - **Setiap soal harus memiliki jawaban yang lengkap.**  
+            - **Tidak boleh menggunakan huruf A, B, C, atau D dalam soal maupun jawaban.**  
             - **WAJIB menggunakan format berikut:**  
 
             **FORMAT OUTPUT:**
             Soal 1:
-            [Isi pertanyaan ESSAY]
-
-            Jawaban:
-            [Isi jawaban ESSAY yang lengkap]
+            [Isi pertanyaan ESSAY, buatkan pertanyaan nya secara mendetail, kompleks, dan juga sesuai dengan studi kasus yang ada di dalam data]
+            Jawaban: [Isi jawaban ESSAY yang lengkap]
 
             Soal 2:
-            [Isi pertanyaan ESSAY]
+            [Isi pertanyaan ESSAY, buatkan pertanyaan nya secara mendetail, kompleks, dan juga sesuai dengan studi kasus yang ada di dalam data]
+            Jawaban: [Isi jawaban ESSAY yang lengkap]
 
-            Jawaban:
-            [Isi jawaban ESSAY yang lengkap]
-
-            **PENTING:**  
-            Jangan buat soal pilihan ganda.  
-            Harus dalam format ESSAY seperti contoh di atas.  
-            Pastikan ada **Jawaban** untuk setiap **Soal**.  
+            **Jangan buat soal pilihan ganda.**  
+            **Pastikan ada "Jawaban" untuk setiap "Soal".**  
+            **Jangan gunakan format pilihan ganda (A, B, C, D) dalam bentuk apapun.**  
 
             **Konteks:** {context}  
             **Jumlah soal:** {num_questions}  
             **Permintaan pengguna:** {question}
-            """
+        """
 
     def generate_essay(self, question: str, context: str):
-        num_questions = 10  # Default
+        num_questions = 10  
         num_match = re.search(r'(\d+)\s*(?:soal|pertanyaan|question)', question, re.IGNORECASE)
         if num_match:
             num_questions = int(num_match.group(1))
@@ -88,26 +84,32 @@ class EssayService:
         questions = []
         
         matches = re.findall(
-            r'\*\*Soal (\d+):\*\*\s*(.*?)\n\n\*\*Jawaban:\*\*\s*(.*?)(?=\n\n\*\*Soal|\Z)', 
-            content, re.DOTALL
+            r'(?:^|\n)(?:\d+\.|\*\*Soal \d+:\*\*)\s*(.*?)(?:\n\n(?:Jawaban:|Jawaban)|\n\n\d+\.|\n\n\*\*Soal|\Z)', 
+            content, 
+            re.DOTALL | re.MULTILINE
         )
 
-        for match in matches:
-            number, question, answer = match
+        answer_matches = re.findall(
+            r'(?:Jawaban:|Jawaban)\s*(.*?)(?=\n\n\d+\.|\n\n\*\*Soal|\Z)', 
+            content, 
+            re.DOTALL | re.MULTILINE
+        )
+
+        for i in range(min(len(matches), len(answer_matches))):
             questions.append({
-                "number": int(number),
-                "question": question.strip(),
-                "answer": answer.strip()
+                "number": i + 1,
+                "question": matches[i].strip(),
+                "answer": answer_matches[i].strip()
             })
         
         if len(questions) < expected_count:
             print(f"Warning: Only {len(questions)} out of {expected_count} questions extracted!")
-            print("Raw output sample:\n", content[:500])  # Show first 500 chars
+            print("Raw content sample:\n", content[:1000])  # Show first 1000 chars
 
         return {
             "total_questions": len(questions),
             "questions": questions
         }
-    
+        
     def generate_json_response(self, question: str, context: str):
         return self.generate_essay(question, context)

@@ -228,7 +228,6 @@ async def query_essay_v2(
                 if num_match:
                     expected = int(num_match.group(1))
 
-                # Filtering out MCQs (if "A)" exists, it's likely an MCQ)
                 filtered_questions = [
                     q for q in json_response["questions"] if not re.search(r"\bA\)", q, re.IGNORECASE)
                 ]

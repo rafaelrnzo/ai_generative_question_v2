@@ -45,10 +45,8 @@ def query_essay(question, vector_retriever, graph):
     retrieved_docs = vector_retriever.invoke(question)
     formatted_context = "\n\n".join(doc.page_content for doc in retrieved_docs)
 
-    is_mcq = any(keyword in question.lower() for keyword in ['soal', 'pilihan ganda', 'mcq', 'multiple choice'])
     is_essay = any(keyword in question.lower() for keyword in ['soal', 'essay', 'pertanyaan'])
     
-    llm_service = LLMService()
     essay_service = EssayService()
     
     try:
