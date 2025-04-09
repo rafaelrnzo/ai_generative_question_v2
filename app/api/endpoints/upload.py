@@ -7,7 +7,7 @@ import shutil
 import os
 import logging
 
-router = APIRouter(prefix="/upload", tags=["upload"])
+router = APIRouter(prefix="/api/upload-file", tags=["upload"])
 
 @router.post("/", response_model=UploadResponse)
 async def upload_pdf(file: UploadFile = File(...), graph=Depends(get_graph)):

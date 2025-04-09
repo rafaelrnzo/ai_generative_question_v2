@@ -9,7 +9,7 @@ class DeleteRequest(BaseModel):
     filename: str
     delete_file: bool = False
 
-router = APIRouter(prefix="/delete", tags=["delete"])
+router = APIRouter(prefix="/api/delete-file", tags=["delete"])
 
 @router.post("/", response_model=DeleteResponse)
 async def delete_data(request: DeleteRequest, graph=Depends(get_graph)):

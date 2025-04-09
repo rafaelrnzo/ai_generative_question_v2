@@ -1,289 +1,210 @@
 import json
 import re
 import ollama
-from fastapi import HTTPException
+from fastapi import HTTPException, APIRouter, Depends
+from fastapi.responses import JSONResponse
 from core.config import OLLAMA_HOST, OLLAMA_MODEL
 
+router = APIRouter()
+
 class EssayService:
-    def __init__(self, llm_service=None):
-        """
-        Initialize the EssayService with an optional LLMService instance.
-        If not provided, it will configure Ollama directly.
-        
-        Args:
-            llm_service: An instance of LLMService. If None, direct Ollama configuration is used.
-        """
-        self.llm_service = llm_service
-        
-        if not llm_service:
-            ollama.base_url = OLLAMA_HOST
-            self.model = OLLAMA_MODEL
-        else:
-            self.model = llm_service.model
+    def __init__(self):
+        ollama.base_url = OLLAMA_HOST
+        self.model = OLLAMA_MODEL
     
-    def format_essay_prompt(self, question: str, context: str, num_essays: int, language: str) -> str:
+    @staticmethod
+    def format_essay_prompt(question: str, context: str, num_questions=10) -> str:
+        return f"""Anda adalah seorang **dosen berpengalaman dalam bidang {context}**.
+            Buatlah **{num_questions} soal ESSAY** berdasarkan permintaan berikut:
+
+            **PERHATIAN PENTING: JANGAN MEMBUAT SOAL PILIHAN GANDA. SAYA HANYA MEMBUTUHKAN SOAL ESSAY TANPA OPTION A, B, C, D.**
+
+            **Instruksi WAJIB untuk format output:**  
+            - **WAJIB membuat soal dalam format ESSAY dengan pertanyaan terbuka.**
+            - **DILARANG KERAS membuat soal pilihan ganda atau multiple choice.**
+            - **DILARANG membuat opsi jawaban dengan format A), B), C), D) atau sejenisnya.**  
+            - **Setiap soal harus berupa pertanyaan yang membutuhkan jawaban panjang dan penjelasan.**  
+            - **Setiap soal harus memiliki jawaban yang lengkap dan komprehensif.**
+            - **Tidak boleh menggunakan huruf A, B, C, atau D dalam soal maupun jawaban.**  
+            - **WAJIB menggunakan format berikut:**  
+
+            **FORMAT OUTPUT:**
+            Soal 1:
+            [Tulis pertanyaan ESSAY di sini. Pastikan pertanyaannya kompleks dan membutuhkan jawaban panjang]
+            Jawaban: [Tulis jawaban ESSAY yang lengkap dan mendalam di sini]
+
+            Soal 2:
+            [Tulis pertanyaan ESSAY di sini. Pastikan pertanyaannya kompleks dan membutuhkan jawaban panjang]
+            Jawaban: [Tulis jawaban ESSAY yang lengkap dan mendalam di sini]
+
+            **CONTOH SOAL ESSAY YANG BENAR:**
+            Soal 1: 
+            Jelaskan prinsip kerja sistem bahan bakar pada kapal dan bagaimana komponen-komponennya saling berinteraksi untuk mengoptimalkan efisiensi bahan bakar?
+            Jawaban: Sistem bahan bakar pada kapal terdiri dari beberapa komponen utama yang bekerja secara terintegrasi. Dimulai dari tangki penyimpanan, bahan bakar akan melalui proses pemurnian menggunakan separator dan purifier untuk menghilangkan kontaminan. Kemudian, bahan bakar dipompa ke tangki harian (service tank) sebelum masuk ke sistem injeksi. Dalam proses ini, tekanan dan temperatur bahan bakar harus dijaga pada nilai optimal untuk memastikan atomisasi sempurna saat injeksi ke dalam silinder. Interaksi antar komponen diatur oleh sistem kontrol yang memastikan timing yang tepat antara suplai bahan bakar dan kebutuhan mesin. Efisiensi sistem bergantung pada pemeliharaan filter, kalibrasi pompa, dan keselarasan operasional seluruh komponen.
+
+            **CONTOH SOAL YANG SALAH (JANGAN BUAT SEPERTI INI):**
+            Soal 1:
+            Apa fungsi utama dari MPK dalam sistem bahan bakar kapal?
+            A) Mengatur aliran bahan bakar dari tangki harian
+            B) Menjaga keseimbangan dan kestabilan sistem bahan bakar
+            C) Mengontrol pengeluaran bahan bakar
+            D) Membuat komponen lain dalam sistem bekerja optimal
+
+            **Konteks:** {context}  
+            **Jumlah soal:** {num_questions}  
+            **Permintaan pengguna:** {question}
         """
-        Format the prompt for essay generation based on the selected language.
-        
-        Args:
-            question: The user's request
-            context: The context information to base essays on
-            num_essays: Number of essays to generate
-            language: "english" or "indonesian"
-            
-        Returns:
-            Formatted prompt string
-        """
-        if language.lower() == "indonesian":
-            return f"""Anda adalah dosen berpengalaman yang ahli dalam pembuatan soal essay berkualitas tinggi.
 
-**Tugas:**
-Buatlah {num_essays} soal essay yang menguji pemahaman mendalam tentang topik berdasarkan konteks yang diberikan.
-
-**Instruksi:**
-- Buat sebanyak {num_essays} soal essay dengan jawaban lengkap.
-- Setiap soal harus menguji pemahaman konseptual, analisis kritis, atau kemampuan aplikasi.
-- Berikan jawaban model yang komprehensif untuk setiap soal.
-- Soal harus mencakup berbagai tingkat kesulitan kognisi (mengingat, memahami, menganalisis, mengevaluasi).
-
-**Format output yang HARUS diikuti:**
-```json
-{{
-  "total_questions": {num_essays},
-  "questions": [
-    {{
-      "id": 1,
-      "question": "Tuliskan pertanyaan essay pertama di sini...",
-      "answer": "Jawaban komprehensif untuk pertanyaan pertama..."
-    }},
-    {{
-      "id": 2,
-      "question": "Tuliskan pertanyaan essay kedua di sini...",
-      "answer": "Jawaban komprehensif untuk pertanyaan kedua..."
-    }},
-    ...
-  ]
-}}
-```
-
-**PENTING:**
-- Output HARUS berupa JSON yang valid dengan format persis seperti di atas.
-- Setiap soal harus memiliki ID unik, teks pertanyaan, dan teks jawaban.
-- Jawaban harus komprehensif dan menyeluruh.
-
-**Konteks:** {context}
-
-**Permintaan:** {question}
-"""
-        else:  # English
-            return f"""You are an experienced professor who specializes in creating high-quality essay questions.
-
-**Task:**
-Create {num_essays} essay questions that test deep understanding of the topic based on the provided context.
-
-**Instructions:**
-- Create exactly {num_essays} essay questions with complete answers.
-- Each question should test conceptual understanding, critical analysis, or application ability.
-- Provide a comprehensive model answer for each question.
-- Questions should cover various levels of cognitive difficulty (recall, comprehension, analysis, evaluation).
-
-**Output format that MUST be followed:**
-```json
-{{
-  "total_questions": {num_essays},
-  "questions": [
-    {{
-      "id": 1,
-      "question": "Write the first essay question here...",
-      "answer": "Comprehensive answer for the first question..."
-    }},
-    {{
-      "id": 2,
-      "question": "Write the second essay question here...",
-      "answer": "Comprehensive answer for the second question..."
-    }},
-    ...
-  ]
-}}
-```
-
-**IMPORTANT:**
-- Output MUST be valid JSON with format exactly as shown above.
-- Each question must have a unique ID, question text, and answer text.
-- Answers should be comprehensive and thorough.
-
-**Context:** {context}
-
-**Request:** {question}
-"""
-
-    def generate_essays(self, question: str, context: str, num_essays: int = 1, language: str = "english") -> dict:
-        """
-        Generate essay questions and answers based on the provided context.
-        
-        Args:
-            question: The user's request for essay generation
-            context: The context information
-            num_essays: Number of essay questions to generate
-            language: The language to generate essays in ("english" or "indonesian")
-            
-        Returns:
-            A dictionary containing the generated essays
-        """
-        # Normalize language
-        language = language.lower().strip()
-        if language not in ["english", "indonesian"]:
-            language = "english"  # Default to English if unrecognized
-        
-        # Ensure num_essays is a valid number
-        try:
-            num_essays = int(num_essays)
-            if num_essays < 1:
-                num_essays = 1
-            elif num_essays > 10:  # Limit to reasonable number
-                num_essays = 10
-        except (ValueError, TypeError):
-            num_essays = 1
+    def generate_essay(self, question: str, context: str):
+        num_questions = 10  
+        num_match = re.search(r'(\d+)\s*(?:soal|pertanyaan|question)', question, re.IGNORECASE)
+        if num_match:
+            num_questions = int(num_match.group(1))
+            print(f"Detected request for {num_questions} questions")
         
         try:
-            # Format the prompt
-            prompt = self.format_essay_prompt(question, context, num_essays, language)
-            
-            # Call Ollama directly or through the llm_service
-            if self.llm_service:
-                # Assuming llm_service has a method to call the LLM
-                raw_response = self.llm_service.call_llm(prompt)
-            else:
-                # Call Ollama directly
-                response = ollama.chat(
-                    model=self.model,
-                    messages=[{
-                        'role': 'user', 
-                        'content': prompt
-                    }]
-                )
-                raw_response = response['message']['content']
-            
-            # Extract JSON from the response
-            return self.parse_essay_response(raw_response, num_essays)
-            
-        except Exception as e:
-            import traceback
-            print(f"Error in generate_essays: {str(e)}")
-            print(traceback.format_exc())
-            raise HTTPException(status_code=500, detail=f"Error processing LLM response: {str(e)}")
-    
-    def parse_essay_response(self, content: str, expected_count: int) -> dict:
-        """
-        Parse the LLM's response and extract valid JSON.
-        
-        Args:
-            content: The raw text response from the LLM
-            expected_count: Expected number of questions
-            
-        Returns:
-            A dictionary containing the parsed response
-        """
-        # Default response if parsing fails
-        default_response = {
-            "total_questions": 0,
-            "questions": []
-        }
-        
-        try:
-            # Look for JSON in the response
-            json_match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
-            
-            if not json_match:
-                # Try different pattern
-                json_match = re.search(r'{[\s\S]*"total_questions"[\s\S]*"questions"[\s\S]*}', content)
-            
-            if json_match:
-                json_content = json_match.group(1)
-            else:
-                # If no clear JSON block, take the whole content
-                json_content = content
-            
-            # Clean up the content to ensure it's valid JSON
-            # Remove any non-JSON leading/trailing content
-            json_content = re.sub(r'^[^{]*', '', json_content)
-            json_content = re.sub(r'[^}]*$', '', json_content)
-            
-            # Parse the JSON
-            parsed_data = json.loads(json_content)
-            
-            # Validate the structure
-            if "total_questions" not in parsed_data or "questions" not in parsed_data:
-                print("Missing required fields in parsed JSON")
-                return default_response
-            
-            # Ensure correct question IDs and update total_questions
-            questions = parsed_data["questions"]
-            for i, question in enumerate(questions):
-                # Ensure each question has id, question, and answer
-                if "id" not in question:
-                    question["id"] = i + 1
-                if "question" not in question or "answer" not in question:
-                    # Skip incomplete questions
-                    questions.pop(i)
-            
-            # Update total questions count
-            parsed_data["total_questions"] = len(questions)
-            
-            # If no questions were parsed, return default
-            if parsed_data["total_questions"] == 0:
-                print("No valid questions found in the response")
-                return default_response
-            
-            return parsed_data
-            
-        except json.JSONDecodeError as e:
-            print(f"JSON parsing error: {str(e)}")
-            print(f"Raw content: {content[:500]}...")
-            
-            # Attempt to extract individual questions if JSON parsing failed
-            questions = []
-            question_matches = re.finditer(r'id["\s:]+(\d+)["\s,]+question["\s:]+([^"]+)["\s,]+answer["\s:]+([^"]+)', 
-                                          content, re.DOTALL)
-            
-            for i, match in enumerate(question_matches):
-                if i >= expected_count:
-                    break
-                    
-                questions.append({
-                    "id": int(match.group(1)) if match.group(1).isdigit() else i + 1,
-                    "question": match.group(2).strip(),
-                    "answer": match.group(3).strip()
-                })
-            
-            return {
-                "total_questions": len(questions),
-                "questions": questions
-            }
-            
-        except Exception as e:
-            print(f"Error parsing essay response: {str(e)}")
-            return default_response
-            
-    def call_llm(self, prompt):
-        """
-        Direct method to call the LLM if no llm_service is provided.
-        
-        Args:
-            prompt: The prompt to send to the LLM
-            
-        Returns:
-            The raw text response from the LLM
-        """
-        try:
+            # First attempt
             response = ollama.chat(
                 model=self.model,
                 messages=[{
                     'role': 'user', 
-                    'content': prompt
+                    'content': self.format_essay_prompt(question, context, num_questions)
                 }]
             )
-            return response['message']['content']
+            
+            content = response['message']['content']
+            print(f"LLM Response (first 300 chars):\n{content[:300]}")  # Debugging
+
+            # Check if response contains A), B), C), D) options
+            if re.search(r'[A-D]\)', content) or re.search(r'[A-D]\s*\)', content):
+                print("Warning: Detected multiple-choice format in response. Retrying with stronger constraints...")
+                # Second attempt with even stronger constraint
+                emphasized_prompt = f"""PERHATIAN: Respons sebelumnya masih berisi pilihan ganda dengan opsi A), B), C), D).
+                
+                SAYA SANGAT MENEKANKAN: JANGAN MEMBUAT SOAL PILIHAN GANDA. SAYA HANYA MEMBUTUHKAN SOAL ESSAY.
+
+                Buatlah {num_questions} soal essay tentang {context} tanpa opsi pilihan ganda.
+                Setiap soal harus berupa pertanyaan terbuka yang membutuhkan jawaban penjelasan panjang.
+                Format yang benar adalah:
+
+                Soal 1: [Pertanyaan essay]
+                Jawaban: [Jawaban lengkap]
+
+                Soal 2: [Pertanyaan essay]
+                Jawaban: [Jawaban lengkap]
+
+                Jangan gunakan format A), B), C), D) atau sejenisnya.
+                Pastikan soal merupakan pertanyaan essay yang kompleks sesuai dengan konteks: {context}
+                """
+                
+                response = ollama.chat(
+                    model=self.model,
+                    messages=[
+                        {'role': 'user', 'content': self.format_essay_prompt(question, context, num_questions)},
+                        {'role': 'assistant', 'content': content},
+                        {'role': 'user', 'content': emphasized_prompt}
+                    ]
+                )
+                content = response['message']['content']
+                print(f"Second attempt response (first 300 chars):\n{content[:300]}")
+
+            # Parse the response into structured format
+            parsed_json = self.parse_essay_text(content, num_questions)
+
+            # If we still don't have enough questions, try one more time
+            if parsed_json["total_questions"] < num_questions:
+                print("Warning: Incomplete questions extracted. Retrying with a modified prompt...")
+                new_prompt = f"""Saya perlu tepat {num_questions} soal essay tentang {context}.
+                
+                Jawaban Anda sebelumnya hanya menghasilkan {parsed_json["total_questions"]} soal yang dapat diidentifikasi.
+                
+                Mohon berikan {num_questions} soal essay dengan format yang jelas:
+                
+                Soal 1: [Pertanyaan essay]
+                Jawaban: [Jawaban lengkap]
+                
+                Soal 2: [Pertanyaan essay]
+                Jawaban: [Jawaban lengkap]
+                
+                Dan seterusnya hingga Soal {num_questions}.
+                """
+                
+                response = ollama.chat(
+                    model=self.model,
+                    messages=[
+                        {'role': 'user', 'content': self.format_essay_prompt(question, context, num_questions)},
+                        {'role': 'assistant', 'content': content},
+                        {'role': 'user', 'content': new_prompt}
+                    ]
+                )
+                content = response['message']['content']
+                parsed_json = self.parse_essay_text(content, num_questions)
+
+            # Post-process to remove any remaining multiple-choice formatting
+            self.clean_multiple_choice_format(parsed_json)
+            
+            return parsed_json
+            
         except Exception as e:
-            print(f"Error calling LLM: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error calling LLM: {str(e)}")
+            import traceback
+            print(f"Error in generate_essay: {str(e)}\n{traceback.format_exc()}")
+            raise HTTPException(status_code=500, detail=f"Error processing LLM response: {str(e)}")
+    
+    @staticmethod
+    def clean_multiple_choice_format(parsed_json):
+        """Remove any remaining multiple-choice formatting from questions and answers"""
+        for q in parsed_json["questions"]:
+            # Remove any options like A), B), C), D) from both questions and answers
+            q["question"] = re.sub(r'\n[A-D]\)[^\n]+', '', q["question"])
+            q["answer"] = re.sub(r'\n[A-D]\)[^\n]+', '', q["answer"])
+            
+            # If the question still looks like a multiple-choice stem, expand it
+            if len(q["question"].strip()) < 100 and not q["question"].strip().endswith('?'):
+                q["question"] = f"Jelaskan secara detail tentang {q['question'].strip()}?"
+    
+    @staticmethod
+    def parse_essay_text(content: str, expected_count=10):
+        questions = []
+        
+        # More robust regex pattern to extract questions and answers
+        pattern = r'(?:Soal\s*(\d+):?|(?<!\w)(\d+)\.)\s*(.*?)(?:\n+(?:Jawaban:?|Jawaban\s*\d+:?)\s*(.*?)(?=\n+(?:Soal\s*\d+:|(?<!\w)\d+\.)|$))'
+        matches = re.findall(pattern, content, re.DOTALL)
+        
+        if not matches:
+            # Fallback pattern if the first one doesn't work
+            question_pattern = r'(?:^|\n)(?:Soal\s*\d+:?|(?<!\w)\d+\.)?\s*(.*?)(?=\n+(?:Jawaban:?|Jawaban\s*\d+:?))'
+            answer_pattern = r'(?:Jawaban:?|Jawaban\s*\d+:?)\s*(.*?)(?=\n+(?:Soal\s*\d+:|(?<!\w)\d+\.)|$)'
+            
+            question_matches = re.findall(question_pattern, content, re.DOTALL)
+            answer_matches = re.findall(answer_pattern, content, re.DOTALL)
+            
+            for i in range(min(len(question_matches), len(answer_matches))):
+                questions.append({
+                    "number": i + 1,
+                    "question": question_matches[i].strip(),
+                    "answer": answer_matches[i].strip()
+                })
+        else:
+            for i, match in enumerate(matches):
+                # The match format might be (num, '', question, answer) or ('', num, question, answer)
+                num = match[0] if match[0] else match[1]
+                question = match[2].strip()
+                answer = match[3].strip()
+                
+                questions.append({
+                    "number": i + 1,  # Use sequential numbering for consistency
+                    "question": question,
+                    "answer": answer
+                })
+        
+        if len(questions) < expected_count:
+            print(f"Warning: Only {len(questions)} out of {expected_count} questions extracted!")
+            print("Raw content sample:\n", content[:1000])  # Show first 1000 chars
+
+        return {
+            "total_questions": len(questions),
+            "questions": questions
+        }
+        
+    def generate_json_response(self, question: str, context: str):
+        return self.generate_essay(question, context)

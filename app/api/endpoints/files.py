@@ -2,7 +2,7 @@ from fastapi import APIRouter
 import os
 from core.config import UPLOAD_DIR
 
-router = APIRouter(prefix="/files", tags=["files"])
+router = APIRouter(prefix="/api/files", tags=["files"])
 
 @router.get("/")
 async def list_files():
