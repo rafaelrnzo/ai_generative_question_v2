@@ -10,9 +10,8 @@ import traceback
 
 router = APIRouter(prefix="/api", tags=["query"])
 
-
 @router.post("/query-essay")
-async def query_essay_v2(
+async def query_essay(
     request: QueryRequest, 
     essay_service: EssayService = Depends(), 
     graph=Depends(get_graph), 
@@ -65,7 +64,6 @@ async def query_essay_v2(
 
                 return JSONResponse(content=json_response)
 
-        # Default fallback if collection_name is missing
         result = query_essay(request.question, vector_retriever, graph)
 
         if not result or not isinstance(result, dict) or result.get("response") is None:
@@ -86,6 +84,7 @@ async def query_essay_v2(
                
 @router.post("/query-mcq")
 async def query_json(request: QueryRequest, graph=Depends(get_graph), vector_retriever=Depends(get_vector_retriever)):
+    print()
     try:
         collection_name = getattr(request, 'collection_name', None)
         

@@ -23,6 +23,7 @@ async def upload_pdf(file: UploadFile = File(...), graph=Depends(get_graph)):
         
         return UploadResponse(
             filename=file.filename, 
+            language=file.language, 
             document_count=doc_count, 
             message="Upload successful"
         )

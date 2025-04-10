@@ -1,0 +1,36 @@
+2025-04-10 03:24:42.683+0000 INFO  Logging config in use: File '/var/lib/neo4j/conf/user-logs.xml'
+2025-04-10 03:24:42.706+0000 INFO  The license agreement was accepted with environment variable NEO4J_ACCEPT_LICENSE_AGREEMENT=yes when the Software was started.
+
+
+2025-04-10 03:24:42.751+0000 INFO  Starting...
+2025-04-10 03:24:44.467+0000 INFO  ======== Neo4j 5.15.0 ========
+2025-04-10 03:24:44.495+0000 INFO  This instance is ServerId{0c8395f7} (0c8395f7-27a9-4f40-a3b6-2abd914dc5d4)
+2025-04-10 03:24:53.148+0000 INFO  Default database 'neo4j' is created
+2025-04-10 03:24:57.047+0000 INFO  Sending metrics to CSV file at /var/lib/neo4j/metrics
+2025-04-10 03:24:57.083+0000 INFO  Bolt enabled on 0.0.0.0:7687.
+2025-04-10 03:24:57.088+0000 INFO  Bolt (Routing) enabled on 0.0.0.0:7688.
+2025-04-10 03:24:57.696+0000 INFO  HTTP enabled on 0.0.0.0:7474.
+2025-04-10 03:24:57.697+0000 INFO  Remote interface available at http://localhost:7474/
+2025-04-10 03:24:57.701+0000 INFO  id: B14215314C67DD3856B69A8E809E3B6AC70BD2AD4DF440F8BA4BBBB8C5050C36
+2025-04-10 03:24:57.702+0000 INFO  name: system
+2025-04-10 03:24:57.703+0000 INFO  creationDate: 2025-04-10T03:24:46.029Z
+2025-04-10 03:24:57.703+0000 INFO  Started.
+2025-04-10 04:10:01.868+0000 INFO  Neo4j Server shutdown initiated by request
+2025-04-10 04:10:01.869+0000 INFO  Stopping...
+2025-04-10 04:10:06.938+0000 INFO  Stopped.
+2025-04-10 04:19:31.447+0000 INFO  Logging config in use: File '/var/lib/neo4j/conf/user-logs.xml'
+2025-04-10 04:19:31.459+0000 INFO  The license agreement was accepted with environment variable NEO4J_ACCEPT_LICENSE_AGREEMENT=yes when the Software was started.
+
+
+2025-04-10 04:19:31.504+0000 INFO  Starting...
+2025-04-10 04:19:33.563+0000 INFO  ======== Neo4j 5.15.0 ========
+2025-04-10 04:19:33.597+0000 INFO  This instance is ServerId{0c8395f7} (0c8395f7-27a9-4f40-a3b6-2abd914dc5d4)
+2025-04-10 04:19:40.319+0000 INFO  Sending metrics to CSV file at /var/lib/neo4j/metrics
+2025-04-10 04:19:40.359+0000 INFO  Bolt enabled on 0.0.0.0:7687.
+2025-04-10 04:19:40.363+0000 INFO  Bolt (Routing) enabled on 0.0.0.0:7688.
+2025-04-10 04:19:41.064+0000 INFO  HTTP enabled on 0.0.0.0:7474.
+2025-04-10 04:19:41.066+0000 INFO  Remote interface available at http://localhost:7474/
+2025-04-10 04:19:41.068+0000 INFO  id: B14215314C67DD3856B69A8E809E3B6AC70BD2AD4DF440F8BA4BBBB8C5050C36
+2025-04-10 04:19:41.069+0000 INFO  name: system
+2025-04-10 04:19:41.070+0000 INFO  creationDate: 2025-04-10T03:24:46.029Z
+2025-04-10 04:19:41.070+0000 INFO  Started.

@@ -18,16 +18,17 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 OLLAMA_HOST = "http://192.168.100.3:11434"
 OLLAMA_MODEL = "llama3.2:latest"
-PDF_PATH = r"C:\Users\SD-LORENZO-PC\pyproject\rndML\fineTuning\rnd\com.pdf"
+PDF_PATH = r"C:\Users\SD-LORENZO-PC\pyproject\proj\ai_stable\ai_generative_question_v2\app\uploads\english\Jabra Elite 85t Tech sheet A4 EN Web 310321.pdf"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 graph = Neo4jGraph(
     url="bolt://localhost:7687",
     username="neo4j",
-    password="admin.admin"
+    password="admin.admin",
+    database="indonesiandata"
 )
-logging.info("Connected to Neo4j successfully")
+logging.info("Connected to Neo4j 'indonesiandata' successfully")
 
 def load_pdf(file_path):
     logging.info(f"Loading PDF from: {file_path}")
@@ -86,6 +87,7 @@ def ingestion(documents):
             url="bolt://localhost:7687",
             username="neo4j",
             password="admin.admin",
+            database="indonesiandata",
             node_label="Document",
             text_node_properties=["text"],
             embedding_node_property="embedding"
@@ -101,8 +103,9 @@ def querying_neo4j(question):
     
     prompt = ChatPromptTemplate.from_messages([ 
         ("system", """Extract all person and organization entities from the text.
-        Return them as a list like this: ["Entity1", "Entity2", ...].
+        Return them as a list like this: ["Entity1", "Entity2", ...]. 
         Make sure to include only full names of people and organizations."""),
+
         ("human", "Extract entities from: {question}")
     ])
     
@@ -126,7 +129,6 @@ def querying_neo4j(question):
                         entities.append(f"{words[i]} {words[i+1]}")
                     else:
                         entities.append(words[i])
-            
             entities = list(set(entities))
             
         logging.info(f"Extracted entities: {entities}")
@@ -134,7 +136,6 @@ def querying_neo4j(question):
     except Exception as e:
         logging.error(f"Error extracting entities: {e}")
         entities = []
-        
         words = question.split()
         for i in range(len(words)):
             if words[i][0].isupper() and words[i].lower() not in ["i", "the", "a", "an", "who", "what", "where", "when", "why", "how"]:

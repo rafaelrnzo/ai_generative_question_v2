@@ -75,10 +75,8 @@ class EssayService:
             content = response['message']['content']
             print(f"LLM Response (first 300 chars):\n{content[:300]}")  # Debugging
 
-            # Check if response contains A), B), C), D) options
             if re.search(r'[A-D]\)', content) or re.search(r'[A-D]\s*\)', content):
                 print("Warning: Detected multiple-choice format in response. Retrying with stronger constraints...")
-                # Second attempt with even stronger constraint
                 emphasized_prompt = f"""PERHATIAN: Respons sebelumnya masih berisi pilihan ganda dengan opsi A), B), C), D).
                 
                 SAYA SANGAT MENEKANKAN: JANGAN MEMBUAT SOAL PILIHAN GANDA. SAYA HANYA MEMBUTUHKAN SOAL ESSAY.
@@ -108,10 +106,8 @@ class EssayService:
                 content = response['message']['content']
                 print(f"Second attempt response (first 300 chars):\n{content[:300]}")
 
-            # Parse the response into structured format
             parsed_json = self.parse_essay_text(content, num_questions)
 
-            # If we still don't have enough questions, try one more time
             if parsed_json["total_questions"] < num_questions:
                 print("Warning: Incomplete questions extracted. Retrying with a modified prompt...")
                 new_prompt = f"""Saya perlu tepat {num_questions} soal essay tentang {context}.
@@ -186,7 +182,6 @@ class EssayService:
                 })
         else:
             for i, match in enumerate(matches):
-                # The match format might be (num, '', question, answer) or ('', num, question, answer)
                 num = match[0] if match[0] else match[1]
                 question = match[2].strip()
                 answer = match[3].strip()

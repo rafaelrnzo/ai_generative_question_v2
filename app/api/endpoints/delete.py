@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from models.schemas import DeleteResponse
-from services.neo4j_operations import delete_data_from_neo4j
+from services.neo4j_operations import delete_data_from_neo4j  # Import the function
 from core.dependencies import get_graph
 import logging
 

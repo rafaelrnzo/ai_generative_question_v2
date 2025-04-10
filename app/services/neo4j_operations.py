@@ -104,25 +104,12 @@ def delete_data_from_neo4j(name, graph):
     logging.info(f"Attempting to delete data related to: {name}")
     
     try:
-        check_query = """
-        MATCH (n)
-        WHERE toLower(n.name) CONTAINS toLower($name) OR 
-              toLower(n.id) CONTAINS toLower($name) OR
-              toLower(n.text) CONTAINS toLower($name)
-        RETURN n.name, n.id, labels(n) as labels
-        LIMIT 10
-        """
-        
-        check_result = graph.query(check_query, {"name": name})
-        logging.info(f"Found {len(check_result)} sample nodes matching '{name}':")
-        for node in check_result:
-            logging.info(f"  - {node}")
-        
+        # First get a count of nodes that will be deleted
         count_query = """
         MATCH (n)
         WHERE toLower(n.name) CONTAINS toLower($name) OR 
               toLower(n.id) CONTAINS toLower($name) OR
-              toLower(n.text) CONTAINS toLower($name)
+              (n.text IS NOT NULL AND toLower(n.text) CONTAINS toLower($name))
         RETURN count(n) as count
         """
         
@@ -132,46 +119,66 @@ def delete_data_from_neo4j(name, graph):
         if nodes_to_delete == 0:
             logging.info(f"No nodes found matching: {name}")
             return 0
+        
+        # Log sample nodes for debugging
+        check_query = """
+        MATCH (n)
+        WHERE toLower(n.name) CONTAINS toLower($name) OR 
+              toLower(n.id) CONTAINS toLower($name) OR
+              (n.text IS NOT NULL AND toLower(n.text) CONTAINS toLower($name))
+        RETURN n.name, n.id, labels(n) as labels
+        LIMIT 10
+        """
+        
+        check_result = graph.query(check_query, {"name": name})
+        logging.info(f"Found {len(check_result)} sample nodes matching '{name}':")
+        for node in check_result:
+            logging.info(f"  - {node}")
             
+        # First, delete the relationships
         relationships_query = """
         MATCH (n)-[r]-(m)
         WHERE toLower(n.name) CONTAINS toLower($name) OR 
               toLower(n.id) CONTAINS toLower($name) OR
-              toLower(n.text) CONTAINS toLower($name)
+              (n.text IS NOT NULL AND toLower(n.text) CONTAINS toLower($name))
         DELETE r
         """
         
         graph.query(relationships_query, {"name": name})
         logging.info(f"Deleted relationships connected to nodes matching: {name}")
         
+        # Then, delete the nodes
         delete_query = """
         MATCH (n)
         WHERE toLower(n.name) CONTAINS toLower($name) OR 
               toLower(n.id) CONTAINS toLower($name) OR
-              toLower(n.text) CONTAINS toLower($name)
+              (n.text IS NOT NULL AND toLower(n.text) CONTAINS toLower($name))
         DELETE n
         """
         
         graph.query(delete_query, {"name": name})
-        logging.info(f"Successfully deleted {nodes_to_delete} nodes matching: {name}")
         
+        # Verify the deletion
         verify_query = """
         MATCH (n)
         WHERE toLower(n.name) CONTAINS toLower($name) OR 
               toLower(n.id) CONTAINS toLower($name) OR
-              toLower(n.text) CONTAINS toLower($name)
+              (n.text IS NOT NULL AND toLower(n.text) CONTAINS toLower($name))
         RETURN count(n) as remaining
         """
         
         verify_result = graph.query(verify_query, {"name": name})
         remaining = verify_result[0]["remaining"] if verify_result else 0
         
+        deleted_count = nodes_to_delete - remaining
+        
         if remaining > 0:
             logging.warning(f"Deletion incomplete. {remaining} nodes still remain.")
         else:
             logging.info("Deletion verified. No matching nodes remain.")
         
-        return nodes_to_delete - remaining
+        logging.info(f"Successfully deleted {deleted_count} nodes matching: {name}")
+        return deleted_count
         
     except Exception as e:
         logging.error(f"Error deleting data for '{name}': {str(e)}")
