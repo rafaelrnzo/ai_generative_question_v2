@@ -1,0 +1,14 @@
+# Ignore Neo4j data files
+neo4j/data
+
+# Ignore Python cache files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Ignore Venv
+venv/
+
+# Ignore uploads or large static files
+uploads/
+

@@ -92,7 +92,7 @@ class LLMService:
             """
 
     @staticmethod
-    def enhance_content_format(content: str) -> str:
+    def enhance_content_format(content: str) -> str: 
         lines = content.split('\n')
         enhanced_lines, current_options = [], {}
         is_english = "Question" in content or "Answer:" in content
