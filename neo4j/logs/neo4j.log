@@ -34,3 +34,19 @@
 2025-04-10 04:19:41.069+0000 INFO  name: system
 2025-04-10 04:19:41.070+0000 INFO  creationDate: 2025-04-10T03:24:46.029Z
 2025-04-10 04:19:41.070+0000 INFO  Started.
+2025-04-11 01:55:13.829+0000 INFO  Logging config in use: File '/var/lib/neo4j/conf/user-logs.xml'
+2025-04-11 01:55:13.840+0000 INFO  The license agreement was accepted with environment variable NEO4J_ACCEPT_LICENSE_AGREEMENT=yes when the Software was started.
+
+
+2025-04-11 01:55:13.918+0000 INFO  Starting...
+2025-04-11 01:55:16.183+0000 INFO  ======== Neo4j 5.15.0 ========
+2025-04-11 01:55:16.216+0000 INFO  This instance is ServerId{0c8395f7} (0c8395f7-27a9-4f40-a3b6-2abd914dc5d4)
+2025-04-11 01:55:32.472+0000 INFO  Sending metrics to CSV file at /var/lib/neo4j/metrics
+2025-04-11 01:55:32.523+0000 INFO  Bolt enabled on 0.0.0.0:7687.
+2025-04-11 01:55:32.528+0000 INFO  Bolt (Routing) enabled on 0.0.0.0:7688.
+2025-04-11 01:55:33.926+0000 INFO  HTTP enabled on 0.0.0.0:7474.
+2025-04-11 01:55:33.928+0000 INFO  Remote interface available at http://localhost:7474/
+2025-04-11 01:55:33.934+0000 INFO  id: B14215314C67DD3856B69A8E809E3B6AC70BD2AD4DF440F8BA4BBBB8C5050C36
+2025-04-11 01:55:33.935+0000 INFO  name: system
+2025-04-11 01:55:33.936+0000 INFO  creationDate: 2025-04-10T03:24:46.029Z
+2025-04-11 01:55:33.937+0000 INFO  Started.

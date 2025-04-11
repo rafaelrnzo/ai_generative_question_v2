@@ -9,20 +9,21 @@ from services.llm_services import LLMService
 from fastapi.responses import JSONResponse
 from fastapi import FastAPI, HTTPException
 from services.essay_services import EssayService
+from utils.helpers import is_mcq_request
 
 def query_rag_system(question, vector_retriever, graph):
     retrieved_docs = vector_retriever.invoke(question)
     formatted_context = "\n\n".join(doc.page_content for doc in retrieved_docs)
 
-    is_mcq = any(keyword in question.lower() for keyword in ['soal', 'pilihan ganda', 'mcq', 'multiple choice'])
+    is_mcq = any(keyword in question.lower() for keyword in ['soal', 'pilihan ganda', 'mcq', 'multiple choice', 'pertanyaan'])
     
     llm_service = LLMService()
     
     try:
         if is_mcq:
-            response = llm_service.generate_mcq(question, formatted_context)
+            response = llm_service.generate_mcq(question, "indonesian", formatted_context)  # Added language parameter
         else:
-            response = llm_service.generate_json_response(question, formatted_context)
+            response = llm_service.generate_json_response(question, "indonesian", formatted_context)  # Added language parameter
         
         return {
             "status": "success",
@@ -69,21 +70,21 @@ def query_essay(question, vector_retriever, graph):
             "status": "error", 
             "message": str(e)
         }
-             
-def query_rag_mcq(question, vector_retriever, graph):
+        
+def query_rag_mcq(question, vector_retriever, graph, language):
     retrieved_docs = vector_retriever.invoke(question)
     formatted_context = "\n\n".join(doc.page_content for doc in retrieved_docs)
 
-    is_mcq = any(keyword in question.lower() for keyword in ['soal', 'pilihan ganda', 'mcq', 'multiple choice'])
+    is_mcq = is_mcq_request(question)
     
     llm_service = LLMService()
-    
+
     try:
         if is_mcq:
-            response = llm_service.generate_mcq(question, formatted_context)
+            response = llm_service.generate_mcq(question, language, formatted_context)
         else:
-            response = llm_service.generate_json_response(question, formatted_context)
-        
+            response = llm_service.generate_json_response(question, language, formatted_context)
+
         return {
             "status": "success",
             "query": question,
@@ -99,12 +100,11 @@ def query_rag_mcq(question, vector_retriever, graph):
             "status": "error", 
             "message": str(e)
         }
-        
+
 def delete_data_from_neo4j(name, graph):
     logging.info(f"Attempting to delete data related to: {name}")
     
     try:
-        # First get a count of nodes that will be deleted
         count_query = """
         MATCH (n)
         WHERE toLower(n.name) CONTAINS toLower($name) OR 
@@ -119,8 +119,7 @@ def delete_data_from_neo4j(name, graph):
         if nodes_to_delete == 0:
             logging.info(f"No nodes found matching: {name}")
             return 0
-        
-        # Log sample nodes for debugging
+
         check_query = """
         MATCH (n)
         WHERE toLower(n.name) CONTAINS toLower($name) OR 
@@ -135,7 +134,6 @@ def delete_data_from_neo4j(name, graph):
         for node in check_result:
             logging.info(f"  - {node}")
             
-        # First, delete the relationships
         relationships_query = """
         MATCH (n)-[r]-(m)
         WHERE toLower(n.name) CONTAINS toLower($name) OR 
@@ -147,7 +145,6 @@ def delete_data_from_neo4j(name, graph):
         graph.query(relationships_query, {"name": name})
         logging.info(f"Deleted relationships connected to nodes matching: {name}")
         
-        # Then, delete the nodes
         delete_query = """
         MATCH (n)
         WHERE toLower(n.name) CONTAINS toLower($name) OR 
@@ -158,7 +155,6 @@ def delete_data_from_neo4j(name, graph):
         
         graph.query(delete_query, {"name": name})
         
-        # Verify the deletion
         verify_query = """
         MATCH (n)
         WHERE toLower(n.name) CONTAINS toLower($name) OR 

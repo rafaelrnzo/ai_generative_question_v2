@@ -9,198 +9,159 @@ class LLMService:
     def __init__(self):
         ollama.base_url = OLLAMA_HOST
         self.model = OLLAMA_MODEL
-    
+
+    def format_mcq_prompt(self, question: str, context: str, num_questions=1, language='indonesian') -> str:
+        if language.lower() == "indonesian":
+            return f"""Anda adalah seorang **dosen berpengalaman dalam bidang {context}**. 
+            Tugas Anda adalah membuat **{num_questions} soal** pilihan ganda dengan kualitas tinggi. 
+
+            **Instruksi SANGAT PENTING untuk format output:**
+            - Gunakan bahasa yang jelas dan tidak ambigu.
+            - Setiap soal HARUS memiliki empat pilihan jawaban A, B, C, dan D.
+            - Jawaban benar harus tersebar secara acak di antara A, B, C, atau D.
+            - Setiap soal HARUS diikuti oleh baris "Jawaban: X" di mana X adalah pilihan yang benar (A, B, C, atau D).
+            - Format ini HARUS konsisten untuk SEMUA {num_questions} soal.
+            - SELALU tulis semua {num_questions} soal yang diminta.
+
+            **Format yang HARUS DIIKUTI:**
+
+            Soal 1:
+            [Pertanyaan lengkap]  
+            A) [Pilihan A]
+            B) [Pilihan B]  
+            C) [Pilihan C]  
+            D) [Pilihan D]  
+            Jawaban: [A/B/C/D]
+
+            Soal 2:
+            [Pertanyaan lengkap]  
+            A) [Pilihan A]  
+            B) [Pilihan B]  
+            C) [Pilihan C]  
+            D) [Pilihan D]  
+            Jawaban: [A/B/C/D]
+
+            [Dan seterusnya sampai Soal {num_questions}]
+
+            **PENTING:** Pastikan setiap soal memiliki jawaban yang jelas dengan format "Jawaban: X" tepat setelah pilihan D.
+            Jika tidak mengikuti format ini dengan tepat, sistem tidak akan dapat memproses jawaban dengan benar.
+
+            **Konteks:** {context}  
+            **Permintaan:** {question}  
+            **Jumlah soal yang harus dibuat: {num_questions}**
+            """
+
+        elif language.lower() == "english":
+            return f"""You are an **experienced lecturer in the field of {context}**. 
+            Your task is to create **{num_questions} high-quality multiple-choice questions**.
+
+            **VERY IMPORTANT Instructions for output format:**
+            - Use clear and unambiguous language.
+            - Each question MUST have four answer options: A, B, C, and D.
+            - The correct answers must be randomly distributed among A, B, C, and D.
+            - Each question MUST be followed by a line that says "Answer: X" where X is the correct choice (A, B, C, or D).
+            - This format MUST be consistent for ALL {num_questions} questions.
+            - ALWAYS write exactly {num_questions} questions as requested.
+
+            **MANDATORY Format:**
+
+            **Question 1:**
+            [Full question]  
+            A) [Option A]  
+            B) [Option B]  
+            C) [Option C]  
+            D) [Option D]  
+            Answer: [A/B/C/D]
+
+            **Question 2:**
+            [Full question]  
+            A) [Option A]  
+            B) [Option B]  
+            C) [Option C]  
+            D) [Option D]  
+            Answer: [A/B/C/D]
+
+            [And so on until Question {num_questions}]
+
+            **IMPORTANT:** Make sure each question has a clearly defined answer in the format "Answer: X" immediately after option D.  
+            If you do not follow this format precisely, the system will not be able to process the answers correctly.
+
+            **Context:** {context}  
+            **Task:** {question}  
+            **Number of questions to generate: {num_questions}**
+            """
+
     @staticmethod
-    def format_mcq_prompt(question: str, context: str, num_questions=10) -> str:
-        return f"""Anda adalah seorang **dosen berpengalaman dalam bidang {context}**. 
-        Tugas Anda adalah membuat **{num_questions} soal** pilihan ganda dengan kualitas tinggi. 
-        
-        **Instruksi SANGAT PENTING untuk format output:**
-        - Gunakan bahasa yang jelas dan tidak ambigu.
-        - Setiap soal HARUS memiliki empat pilihan jawaban A, B, C, dan D.
-        - Jawaban benar harus tersebar secara acak di antara A, B, C, atau D.
-        - Setiap soal HARUS diikuti oleh baris "Jawaban: X" di mana X adalah pilihan yang benar (A, B, C, atau D).
-        - Format ini HARUS konsisten untuk SEMUA {num_questions} soal.
-        - SELALU tulis semua {num_questions} soal yang diminta.
+    def enhance_content_format(content: str) -> str:
+        lines = content.split('\n')
+        enhanced_lines, current_options = [], {}
+        is_english = "Question" in content or "Answer:" in content
+        answer_marker = "Answer:" if is_english else "Jawaban:"
+        question_pattern = r'(?:\*\*)?(?:Question|Soal)\s+(\d+)(?:\*\*)?[:\.]?'
 
-        **Format yang HARUS DIIKUTI:**
-        
-        **Soal 1:**
-        [Pertanyaan lengkap]
-        A) [Pilihan A]
-        B) [Pilihan B]
-        C) [Pilihan C]
-        D) [Pilihan D]
-        Jawaban: [A/B/C/D]
+        option_count = 0
+        for line in lines:
+            stripped = line.strip()
+            if re.search(question_pattern, stripped):
+                if option_count == 4 and not any(answer_marker in l for l in enhanced_lines[-5:]):
+                    enhanced_lines.append(f"{answer_marker} A")
+                option_count = 0
+                enhanced_lines.append(line)
+                continue
 
-        **Soal 2:**
-        [Pertanyaan lengkap]
-        A) [Pilihan A]
-        B) [Pilihan B]
-        C) [Pilihan C]
-        D) [Pilihan D]
-        Jawaban: [A/B/C/D]
+            if re.match(r'^([A-D])[\s\)\.:]+\s*(.*)', stripped):
+                option_count += 1
+                enhanced_lines.append(line)
+                continue
 
-        [Dan seterusnya sampai Soal {num_questions}]
+            if answer_marker in stripped:
+                enhanced_lines.append(line)
+                continue
 
-        **PENTING:** Pastikan setiap soal memiliki jawaban yang jelas dengan format "Jawaban: X" tepat setelah pilihan D.
-        Jika tidak mengikuti format ini dengan tepat, sistem tidak akan dapat memproses jawaban dengan benar.
+            if option_count == 4 and not any(answer_marker in l for l in enhanced_lines[-4:]):
+                enhanced_lines.append(f"{answer_marker} A")
 
-        **Konteks:** {context}
-        **Permintaan:** {question}
-        **Jumlah soal yang harus dibuat: {num_questions}**
-        """
-    
-    def generate_mcq(self, question: str, context: str):
-        num_questions = 10  # Default
-        num_match = re.search(r'(\d+)\s*(?:soal|pertanyaan|question)', question, re.IGNORECASE)
-        if num_match:
-            num_questions = int(num_match.group(1))
-            print(f"Detected request for {num_questions} questions")
-        
+            enhanced_lines.append(line)
+
+        if option_count == 4 and not any(answer_marker in l for l in enhanced_lines[-5:]):
+            enhanced_lines.append(f"{answer_marker} A")
+
+        return '\n'.join(enhanced_lines)
+
+    def generate_mcq(self, question: str, language: str, context: str):
         try:
-            response = ollama.chat(
-                model=self.model,
-                messages=[{
-                    'role': 'user', 
-                    'content': self.format_mcq_prompt(question, context, num_questions)
-                }]
-            )
-            
+            language = language.lower() if language else "indonesian"
+            num_questions = 10
+
+            num_match = re.search(r'(\d+)\s*(soal|pertanyaan|question)', question, re.IGNORECASE)
+            if num_match:
+                num_questions = int(num_match.group(1))
+
+            prompt = self.format_mcq_prompt(question, context, num_questions, language)
+            response = ollama.chat(model=self.model, messages=[{'role': 'user', 'content': prompt}])
             content = response['message']['content']
-            
-            print(f"Response sample (first 300 chars):\n{content[:300]}")
-            
             parsed_json = parse_mcq_text(content)
-            
+
             if parsed_json["total_questions"] < num_questions:
-                print(f"Only parsed {parsed_json['total_questions']} of {num_questions} questions.")
-                print("Attempting to reformat and parse again...")
-                
                 enhanced_content = self.enhance_content_format(content)
                 parsed_json = parse_mcq_text(enhanced_content)
-                
-                if parsed_json["total_questions"] < num_questions:
-                    print("Still missing questions. Making another API call with stricter format...")
-                    second_prompt = self.format_mcq_prompt_strict(question, context, num_questions, 
-                                                                parsed_json["total_questions"])
-                    
-                    second_response = ollama.chat(
-                        model=self.model,
-                        messages=[{
-                            'role': 'user', 
-                            'content': second_prompt
-                        }]
-                    )
-                    
-                    second_content = second_response['message']['content']
-                    second_parsed = parse_mcq_text(second_content)
-                    
-                    all_questions = parsed_json["questions"] + second_parsed["questions"]
-                    
-                    unique_questions = {}
-                    for q in all_questions:
-                        if q["number"] not in unique_questions:
-                            unique_questions[q["number"]] = q
-                    
-                    combined_questions = list(unique_questions.values())
-                    combined_questions.sort(key=lambda x: x["number"])
-                    
-                    parsed_json = {
-                        "total_questions": len(combined_questions),
-                        "questions": combined_questions
-                    }
-            
-            return parsed_json
-            
+
+            return json.loads(json.dumps(parsed_json))
+
         except Exception as e:
             import traceback
             print(f"Error in generate_mcq: {str(e)}")
             print(traceback.format_exc())
             raise HTTPException(status_code=500, detail=f"Error processing LLM response: {str(e)}")
-    
-    def format_mcq_prompt_strict(self, question: str, context: str, num_questions: int, 
-                                parsed_questions: int) -> str:
-        start_from = parsed_questions + 1
-        remaining = num_questions - parsed_questions
-        
-        return f"""Anda adalah seorang dosen berpengalaman. 
-        Sebelumnya Anda telah membuat {parsed_questions} soal pilihan ganda, 
-        tetapi masih perlu membuat {remaining} soal lagi (dari Soal {start_from} hingga Soal {num_questions}).
-        
-        **IKUTI FORMAT INI DENGAN TEPAT untuk setiap soal:**
-        
-        **Soal [nomor]:**
-        [Pertanyaan lengkap]
-        A) [Pilihan A]
-        B) [Pilihan B]
-        C) [Pilihan C]
-        D) [Pilihan D]
-        Jawaban: [A/B/C/D]
-        
-        Buat soal mulai dari Soal {start_from} sampai Soal {num_questions}.
-        
-        **SANGAT PENTING:**
-        - Pastikan ada baris "Jawaban: X" setelah setiap pilihan D
-        - Pilihan jawaban harus A, B, C, atau D
-        - Format harus persis seperti di atas
-        - Jangan ada teks tambahan sebelum "Soal [nomor]:"
-        - Jangan ada teks tambahan setelah "Jawaban: [A/B/C/D]"
-        
-        **Konteks:** {context}
-        **Permintaan:** {question}
-        """
-    
-    @staticmethod
-    def enhance_content_format(content: str) -> str:
-        lines = content.split('\n')
-        enhanced_lines = []
-        
-        option_count = 0
-        current_options = {}
-        current_question = None
-        
-        for line in lines:
-            stripped = line.strip()
-            
-            question_match = re.search(r'(?:\*\*)?Soal\s+(\d+)(?:\*\*)?[:\.]?', stripped)
-            if question_match:
-                if current_question and option_count == 4 and len(current_options) == 4:
-                    if not any("jawaban" in l.lower() for l in enhanced_lines[-5:]):
-                        enhanced_lines.append(f"Jawaban: A")
-                
-                current_question = question_match.group(1)
-                option_count = 0
-                current_options = {}
-                enhanced_lines.append(line)
-                continue
-            
-            option_match = re.match(r'^([A-D])[\s\)\.:]+\s*(.*)', stripped)
-            if option_match:
-                option_letter = option_match.group(1)
-                current_options[option_letter] = option_match.group(2)
-                option_count += 1
-                enhanced_lines.append(line)
-                continue
-            
-            if "jawaban" in stripped.lower() and ":" in stripped:
-                enhanced_lines.append(line)
-                continue
-            
-            if option_count == 4 and len(current_options) == 4 and not any("jawaban" in l.lower() for l in enhanced_lines[-4:]):
-                enhanced_lines.append(line)
-                
-                if not re.search(r'[jJ]awaban', stripped):
-                    enhanced_lines.append(f"Jawaban: A")
-                continue
-            
-            enhanced_lines.append(line)
-        
-        if option_count == 4 and len(current_options) == 4:
-            if not any("jawaban" in l.lower() for l in enhanced_lines[-5:]):
-                enhanced_lines.append(f"Jawaban: A")
-        
-        return '\n'.join(enhanced_lines)
-    
-    def generate_json_response(self, question: str, context: str):
-        pass
+
+    def generate_json_response(self, question: str, language: str, context: str, num_questions: int = 1):
+        try:
+            prompt = self.format_mcq_prompt(question, context, num_questions, language)
+            response = ollama.chat(model=self.model, messages=[{'role': 'user', 'content': prompt}])
+            return {
+                "response": response['message']['content'],
+                "type": "general_query"
+            }
+        except Exception as e:
+            print(f"Error in generate_json_response: {str(e)}")
+            return None
