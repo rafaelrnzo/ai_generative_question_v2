@@ -41,17 +41,17 @@ def query_rag_system(question, vector_retriever, graph):
             "message": str(e)
         }
         
-def query_essay(question, vector_retriever, graph):
+def query_rag_essay(question, vector_retriever, graph, language):
     retrieved_docs = vector_retriever.invoke(question)
     formatted_context = "\n\n".join(doc.page_content for doc in retrieved_docs)
 
-    is_essay = any(keyword in question.lower() for keyword in ['soal', 'essay', 'pertanyaan'])
+    is_essay = any(keyword in question.lower() for keyword in ['soal', 'essay', 'pertanyaan', 'question'])
     
     essay_service = EssayService()
     
     try:
         if is_essay:
-            response = essay_service.generate_essay(question, formatted_context)
+            response = essay_service.generate_essay(question, language, formatted_context)
         else:
             pass
         
