@@ -135,4 +135,3 @@ async def query_json(request: QueryRequest, graph=Depends(get_graph)):
                 "trace": traceback.format_exc()
             }
         )
-
