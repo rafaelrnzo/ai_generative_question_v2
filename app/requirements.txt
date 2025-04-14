@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+pydantic
+python-multipart
+langchain
+langchain-core
+langchain-community
+langchain-ollama
+langchain-neo4j
+langchain-experimental
+neo4j
+ollama
+python-dotenv
+pdf2image
+pymupdf
+pytesseract
+loguru
