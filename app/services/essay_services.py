@@ -63,7 +63,6 @@ class EssayService:
             print(f"Detected request for {num_questions} questions")
         
         try:
-            # First attempt
             response = ollama.chat(
                 model=self.model,
                 messages=[{

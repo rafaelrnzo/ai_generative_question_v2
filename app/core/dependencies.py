@@ -14,7 +14,7 @@ def get_vector_retriever():
         url=NEO4J_URL,
         username=NEO4J_USER,
         password=NEO4J_PASSWORD,
-        database="indonesiandata",
+        database="indonesiandb",
         node_label="Document",
         text_node_properties=["text"],
         embedding_node_property="embedding"
@@ -29,7 +29,7 @@ def get_vector_retriever_en():
         url=NEO4J_URL,
         username=NEO4J_USER,
         password=NEO4J_PASSWORD,
-        database="englishdata",
+        database="englishdb",
         node_label="Document",
         text_node_properties=["text"],
         embedding_node_property="embedding"
