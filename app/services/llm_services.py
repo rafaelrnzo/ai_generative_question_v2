@@ -65,23 +65,14 @@ class LLMService:
 
             **MANDATORY Format:**
 
-            **Question 1:**
+            Note this : just give the response like this do not give another description or something, 
+            ONCE AGAIN DON'T GIVE ANOTHER DESCRIPTION JUST RETURN BELOW
             [Full question]  
             A) [Option A]  
             B) [Option B]  
             C) [Option C]  
             D) [Option D]  
-            Answer: [A/B/C/D]
-
-            **Question 2:**
-            [Full question]  
-            A) [Option A]  
-            B) [Option B]  
-            C) [Option C]  
-            D) [Option D]  
-            Answer: [A/B/C/D]
-
-            [And so on until Question {num_questions}]
+            Answer: [A/B/C/D] 
 
             **IMPORTANT:** Make sure each question has a clearly defined answer in the format "Answer: X" immediately after option D.  
             If you do not follow this format precisely, the system will not be able to process the answers correctly.
@@ -94,36 +85,69 @@ class LLMService:
     @staticmethod
     def enhance_content_format(content: str) -> str: 
         lines = content.split('\n')
-        enhanced_lines, current_options = [], {}
-        is_english = "Question" in content or "Answer:" in content
-        answer_marker = "Answer:" if is_english else "Jawaban:"
-        question_pattern = r'(?:\*\*)?(?:Question|Soal)\s+(\d+)(?:\*\*)?[:\.]?'
-
+        enhanced_lines = []
         option_count = 0
+        
+        is_english = any(term in content for term in ["Question", "Answer:", "Correct", "The answer is"])
+        answer_marker = "Answer:" if is_english else "Jawaban:"
+        
+        question_pattern = r'(?:\*\*)?(?:Question|Soal)\s+(\d+)(?:\*\*)?[:\.]?'
+        alt_question_pattern = r'^\s*(\d+)[\.\:]\s*(.*)$'
+
+        inside_question = False
+        has_seen_answer = False
+        current_options = []
+
         for line in lines:
             stripped = line.strip()
-            if re.search(question_pattern, stripped):
-                if option_count == 4 and not any(answer_marker in l for l in enhanced_lines[-5:]):
+
+            if re.search(question_pattern, stripped) or re.search(alt_question_pattern, stripped):
+                if option_count > 0 and not has_seen_answer:
                     enhanced_lines.append(f"{answer_marker} A")
+                inside_question = True
                 option_count = 0
+                has_seen_answer = False
+                current_options = []
                 enhanced_lines.append(line)
                 continue
 
-            if re.match(r'^([A-D])[\s\)\.:]+\s*(.*)', stripped):
+            option_match = re.match(r'^([A-D])[\s\)\.:]+\s*(.*)', stripped)
+            if option_match:
                 option_count += 1
-                enhanced_lines.append(line)
+                label = option_match.group(1)
+                text = option_match.group(2).strip()
+                # Remove trailing noise
+                text = re.split(r'(?i)(let me know|adjust the difficulty|generate another question)', text)[0].strip()
+                current_options.append(label)
+                enhanced_lines.append(f"{label}) {text}")
                 continue
 
-            if answer_marker in stripped:
-                enhanced_lines.append(line)
-                continue
+            answer_patterns = [
+                r'(?:[Jj]awaban|[Aa]nswer)[\s\:\=]+([A-D])',
+                r'[Cc]orrect\s+[Aa]nswer[\s\:\=]+([A-D])',
+                r'[Cc]orrect[\s\:\=]+([A-D])',
+                r'[Tt]he\s+[Aa]nswer\s+is[\s\:\=]+([A-D])',
+                r'[Kk]ey[\s\:\=]+([A-D])'
+            ]
 
-            if option_count == 4 and not any(answer_marker in l for l in enhanced_lines[-4:]):
-                enhanced_lines.append(f"{answer_marker} A")
+            for pattern in answer_patterns:
+                match = re.search(pattern, stripped)
+                if match:
+                    answer = match.group(1).strip().upper()
+                    if answer in ['A', 'B', 'C', 'D']:
+                        enhanced_lines.append(f"{answer_marker} {answer}")
+                        has_seen_answer = True
+                        break
+            else:
+                # If 4 options seen but no answer, add fallback
+                if option_count == 4 and not has_seen_answer and all(opt in current_options for opt in ['A', 'B', 'C', 'D']):
+                    enhanced_lines.append(f"{answer_marker} A")
+                    has_seen_answer = True
 
             enhanced_lines.append(line)
 
-        if option_count == 4 and not any(answer_marker in l for l in enhanced_lines[-5:]):
+        # Final fallback
+        if option_count > 0 and not has_seen_answer:
             enhanced_lines.append(f"{answer_marker} A")
 
         return '\n'.join(enhanced_lines)
@@ -131,7 +155,7 @@ class LLMService:
     def generate_mcq(self, question: str, language: str, context: str):
         try:
             language = language.lower() if language else "indonesian"
-            num_questions = 10
+            num_questions = 1
 
             num_match = re.search(r'(\d+)\s*(soal|pertanyaan|question)', question, re.IGNORECASE)
             if num_match:
