@@ -12,4 +12,6 @@ deploy_app:
     - echo "Running FastAPI app with Uvicorn..."
     - cd app
     - docker build -t app .
-    - docker run -d -p 8002:8002 app
+    - echo "Stopping and removing existing container if exists..."
+    - docker rm -f fastapi_app || true
+    - docker run -d -p 8002:8002 --name fastapi_app app
