@@ -5,11 +5,10 @@ def parse_mcq_text(content: str):
     try:
         questions = []
         
-        # Look for both Indonesian and English question patterns
         question_markers = re.finditer(r'(?:\*\*)?(?:Soal|Question)\s+(\d+)(?:\*\*)?[:\.]?', content)
         
         positions = [(int(match.group(1)), match.start()) for match in question_markers]
-        positions.sort(key=lambda x: x[0])  # Sort by question number
+        positions.sort(key=lambda x: x[0])
         
         if not positions:
             print("No standard question markers found. Trying alternative patterns...")
@@ -30,7 +29,6 @@ def parse_mcq_text(content: str):
                 except Exception as e:
                     print(f"Error parsing question at position {start_pos}: {str(e)}")
         else:
-            # Try both Indonesian and English patterns for fallback
             raw_questions = re.split(r'(?:\*\*)?(?:Soal|Question)(?:\*\*)?:', content)
             if raw_questions and not raw_questions[0].strip():
                 raw_questions = raw_questions[1:]
@@ -59,7 +57,6 @@ def parse_mcq_text(content: str):
         raise HTTPException(status_code=500, detail=f"Error parsing MCQ response: {str(e)}")
     
 def parse_single_question(question_content, question_number):
-    # Remove question marker at the beginning
     question_content = re.sub(r'^(?:\*\*)?(?:Soal|Question)\s+\d+(?:\*\*)?[:\.]?\s*', '', question_content)
     
     lines = question_content.split('\n')
@@ -68,7 +65,6 @@ def parse_single_question(question_content, question_number):
     question_text = ""
     option_start_idx = -1
     
-    # Find where the options start
     for i, line in enumerate(clean_lines):
         if re.match(r'^[A-D][\)\.]', line) or re.match(r'^[A-D]\s*[\)\.]', line):
             option_start_idx = i
@@ -87,19 +83,16 @@ def parse_single_question(question_content, question_number):
     answer = None
     
     if option_start_idx != -1:
-        # Process options and look for answer
         option_lines = clean_lines[option_start_idx:]
         current_option = None
         
         for i, line in enumerate(option_lines):
-            # Check for option markers
             option_match = re.match(r'^([A-D])[\s\)\.:]+\s*(.*)', line)
             if option_match:
                 current_option = option_match.group(1)
                 options[current_option] = option_match.group(2).strip()
                 continue
                 
-            # Check for answer markers with multiple patterns
             answer_patterns = [
                 r'(?:[Jj]awaban|[Aa]nswer)[\s\:\=]+([A-D])',  # Standard format
                 r'[Cc]orrect\s+[Aa]nswer[\s\:\=]+([A-D])',    # "Correct Answer: X" format
@@ -114,13 +107,10 @@ def parse_single_question(question_content, question_number):
                     answer = answer_match.group(1)
                     break
             
-            # If this line is a continuation of the previous option
             if current_option and not option_match and not answer:
                 options[current_option] += " " + line
     
-    # If answer wasn't found in the options section, check the entire content
     if not answer:
-        # Try all the answer patterns on the full content
         answer_patterns = [
             r'(?:[Jj]awaban|[Aa]nswer)[\s\:\=]+([A-D])',
             r'[Cc]orrect\s+[Aa]nswer[\s\:\=]+([A-D])',
@@ -135,22 +125,18 @@ def parse_single_question(question_content, question_number):
                 answer = answer_match.group(1)
                 break
     
-    # Look for bold formatting that might indicate the answer
     if not answer:
         bold_match = re.search(r'\*\*\s*([A-D])\s*\*\*', question_content)
         if bold_match:
             answer = bold_match.group(1)
     
-    # Check for answer indicators like "(correct)" next to an option
     if not answer:
         for option_letter in options:
             if re.search(r'(?:\(correct\)|\(right\)|\(true\))', options[option_letter], re.IGNORECASE):
                 answer = option_letter
-                # Clean up the option text
                 options[option_letter] = re.sub(r'\s*(?:\(correct\)|\(right\)|\(true\))\s*', '', options[option_letter], flags=re.IGNORECASE)
                 break
     
-    # Default to A only if we have all options and couldn't find an answer
     if not answer and all(options.values()):
         print(f"Warning: No answer found for question {question_number}. Using default answer A.")
         answer = 'A'
@@ -176,36 +162,3 @@ def parse_single_question(question_content, question_number):
         print(f"  Answer: {answer}")
         print(f"  Raw content: {question_content[:100]}...")
         return None
-    
-    # You are an **experienced lecturer in the field of {context}**. 
-    #         Your task is to create **{num_questions} high-quality multiple-choice questions**.
-
-    #         **CRITICAL FORMATTING INSTRUCTIONS:**
-    #         - Each question must have exactly four options labeled A, B, C, and D.
-    #         - Each question MUST end with "Answer: X" where X is one of A, B, C, or D.
-    #         - DO NOT include any additional text, explanations, or notes - ONLY the questions, options, and answers.
-    #         - Follow EXACTLY the format of the example below.
-    #         - Must contain the option of the answer (A, B, C, D)
-            
-    #         **REQUIRED FORMAT - FOLLOW THIS EXACTLY:**
-    #         always follow this example layout
-    #         this is the example:
-    #         What is the primary display technology used in the Samsung Galaxy S25?
-
-    #         A) OLED
-    #         B) Dynamic LTPO AMOLED 2X
-    #         C) Super AMOLED
-    #         D) Quantum Dot
-
-    #         Answer: B) Dynamic LTPO AMOLED 2X <- this is mandatory
-            
-
-    #         **IMPORTANT:** 
-    #         - The answer MUST be on its own line immediately after option D
-    #         - The answer MUST be in the format "Answer: X" where X is A, B, C, or D
-    #         - Use only one letter for the answer (A, B, C, or D)
-    #         - Do not include any explanations or additional information beyond the question, options, and answer
-
-    #         **Context:** {context}
-    #         **Task:** {question}
-    #         **Number of questions to generate: {num_questions}**

@@ -3,8 +3,21 @@ from langchain_ollama import OllamaEmbeddings
 from langchain_neo4j import Neo4jGraph
 from langchain_community.vectorstores import Neo4jVector
 
+def get_graph_upload(language: str):
+    database = "englishdb" if language == "english" else "testing"
+    return Neo4jGraph(
+        url=NEO4J_URL,
+        username=NEO4J_USER,
+        password=NEO4J_PASSWORD,
+        database=database
+    )
+
 def get_graph():
-    return Neo4jGraph(url=NEO4J_URL, username=NEO4J_USER, password=NEO4J_PASSWORD)
+    return Neo4jGraph(
+        url=NEO4J_URL,
+        username=NEO4J_USER,
+        password=NEO4J_PASSWORD,
+    )
 
 def get_vector_retriever():
     embed = OllamaEmbeddings(model="mxbai-embed-large", base_url=OLLAMA_HOST)
@@ -14,7 +27,7 @@ def get_vector_retriever():
         url=NEO4J_URL,
         username=NEO4J_USER,
         password=NEO4J_PASSWORD,
-        database="indonesiandb",
+        database="testing",
         node_label="Document",
         text_node_properties=["text"],
         embedding_node_property="embedding"

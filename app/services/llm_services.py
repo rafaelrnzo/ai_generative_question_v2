@@ -15,16 +15,16 @@ class LLMService:
             return f"""Anda adalah seorang profesional berpengalaman di bidang **{context}**.  
             Tugas Anda adalah membuat **1 soal pilihan ganda (MCQ)** yang **unik, kreatif**, dan **tidak boleh berulang**, berdasarkan topik berikut:
 
-            📌 **Topik / Permintaan:** {question}
+            **Topik / Permintaan:** {question}
 
-            🎯 **Petunjuk penting yang HARUS diikuti:**
+            **Petunjuk penting yang HARUS diikuti:**
             1. Soal yang dibuat harus **berbeda setiap kali** (tidak boleh mengulang atau terlalu mirip).
             2. Soal harus **berdasarkan fakta yang benar** dan relevan dengan topik.
             3. Gunakan **variasi dalam kata-kata, fokus, dan sudut pandang** agar tidak repetitif.
             4. Jawaban benar harus **acak secara konsisten** di antara A, B, C, atau D.
             5. Jangan sertakan penjelasan, deskripsi, atau ucapan apa pun — cukup soal, opsi, dan jawaban.
 
-            ✅ **Format WAJIB (ikuti persis seperti ini):**
+            **Format WAJIB (ikuti persis seperti ini):**
 
             [Soal lengkap]  
             A) [Pilihan A]  
@@ -33,7 +33,7 @@ class LLMService:
             D) [Pilihan D]  
             Jawaban: [A/B/C/D] ← HARUS ADA!
 
-            🚫 **Catatan:**
+            **Catatan:**
             - Jangan menambahkan penjelasan, catatan kaki, atau konteks tambahan apa pun.
             - Jika Anda tidak mengikuti format ini, maka soal akan ditolak.
             """
@@ -97,7 +97,6 @@ class LLMService:
                 option_count += 1
                 label = option_match.group(1)
                 text = option_match.group(2).strip()
-                # Remove trailing noise
                 text = re.split(r'(?i)(let me know|adjust the difficulty|generate another question)', text)[0].strip()
                 current_options.append(label)
                 enhanced_lines.append(f"{label}) {text}")
@@ -120,14 +119,12 @@ class LLMService:
                         has_seen_answer = True
                         break
             else:
-                # If 4 options seen but no answer, add fallback
                 if option_count == 4 and not has_seen_answer and all(opt in current_options for opt in ['A', 'B', 'C', 'D']):
                     enhanced_lines.append(f"{answer_marker} A")
                     has_seen_answer = True
 
             enhanced_lines.append(line)
 
-        # Final fallback
         if option_count > 0 and not has_seen_answer:
             enhanced_lines.append(f"{answer_marker} A")
 
