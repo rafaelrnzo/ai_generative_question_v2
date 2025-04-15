@@ -10,5 +10,6 @@ deploy_app:
     - cd 'C:\Users\FIT\ai_proj\ai_generative_question_v2\'
     - git pull origin neo4j_version
     - echo "Running FastAPI app with Uvicorn..."
-    - cd 'C:\Users\FIT\ai_proj\ai_generative_question_v2\app'
-    - uvicorn main:app --host 192.168.100.3 --port 8002
+    - $env:VENV_PATH = "C:\Users\FIT\ai_proj\ai_generative_question_v2\venv"
+    - & "$env:VENV_PATH\Scripts\activate.ps1"
+    - & "$env:VENV_PATH\Scripts\python.exe" -m uvicorn main:app --host 192.168.100.3 --port 8002
