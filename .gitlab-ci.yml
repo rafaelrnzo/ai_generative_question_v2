@@ -10,4 +10,6 @@ deploy_app:
     - cd 'C:\Users\FIT\ai_proj\ai_generative_question_v2'
     - git pull origin neo4j_version
     - echo "Running FastAPI app with Uvicorn..."
-    - powershell -Command "$venv='C:\\Users\\FIT\\ai_proj\\ai_generative_question_v2\\venv'; & `"$venv\\Scripts\\python.exe`" -m uvicorn main:app --host 192.168.100.3 --port 8002"
+    - cd app
+    - docker build -t app .
+    - docker run -p 8002:8002 app
