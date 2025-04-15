@@ -12,74 +12,55 @@ class LLMService:
 
     def format_mcq_prompt(self, question: str, context: str, num_questions=1, language='indonesian') -> str:
         if language.lower() == "indonesian":
-            return f"""Anda adalah seorang **dosen berpengalaman dalam bidang {context}**. 
-            Tugas Anda adalah membuat **{num_questions} soal** pilihan ganda dengan kualitas tinggi. 
+            return f"""Anda adalah seorang profesional berpengalaman di bidang **{context}**.  
+            Tugas Anda adalah membuat **1 soal pilihan ganda (MCQ)** yang **unik, kreatif**, dan **tidak boleh berulang**, berdasarkan topik berikut:
 
-            **Instruksi SANGAT PENTING untuk format output:**
-            - Gunakan bahasa yang jelas dan tidak ambigu.
-            - Setiap soal HARUS memiliki empat pilihan jawaban A, B, C, dan D.
-            - Jawaban benar harus tersebar secara acak di antara A, B, C, atau D.
-            - Setiap soal HARUS diikuti oleh baris "Jawaban: X" di mana X adalah pilihan yang benar (A, B, C, atau D).
-            - Format ini HARUS konsisten untuk SEMUA {num_questions} soal.
-            - SELALU tulis semua {num_questions} soal yang diminta.
+            📌 **Topik / Permintaan:** {question}
 
-            **Format yang HARUS DIIKUTI:**
+            🎯 **Petunjuk penting yang HARUS diikuti:**
+            1. Soal yang dibuat harus **berbeda setiap kali** (tidak boleh mengulang atau terlalu mirip).
+            2. Soal harus **berdasarkan fakta yang benar** dan relevan dengan topik.
+            3. Gunakan **variasi dalam kata-kata, fokus, dan sudut pandang** agar tidak repetitif.
+            4. Jawaban benar harus **acak secara konsisten** di antara A, B, C, atau D.
+            5. Jangan sertakan penjelasan, deskripsi, atau ucapan apa pun — cukup soal, opsi, dan jawaban.
 
-            Soal 1:
-            [Pertanyaan lengkap]  
-            A) [Pilihan A]
-            B) [Pilihan B]  
-            C) [Pilihan C]  
-            D) [Pilihan D]  
-            Jawaban: [A/B/C/D]
+            ✅ **Format WAJIB (ikuti persis seperti ini):**
 
-            Soal 2:
-            [Pertanyaan lengkap]  
+            [Soal lengkap]  
             A) [Pilihan A]  
             B) [Pilihan B]  
             C) [Pilihan C]  
             D) [Pilihan D]  
-            Jawaban: [A/B/C/D]
+            Jawaban: [A/B/C/D] ← HARUS ADA!
 
-            [Dan seterusnya sampai Soal {num_questions}]
-
-            **PENTING:** Pastikan setiap soal memiliki jawaban yang jelas dengan format "Jawaban: X" tepat setelah pilihan D.
-            Jika tidak mengikuti format ini dengan tepat, sistem tidak akan dapat memproses jawaban dengan benar.
-
-            **Konteks:** {context}  
-            **Permintaan:** {question}  
-            **Jumlah soal yang harus dibuat: {num_questions}**
+            🚫 **Catatan:**
+            - Jangan menambahkan penjelasan, catatan kaki, atau konteks tambahan apa pun.
+            - Jika Anda tidak mengikuti format ini, maka soal akan ditolak.
             """
 
         elif language.lower() == "english":
-            return f"""You are an **experienced lecturer in the field of {context}**. 
-            Your task is to create **{num_questions} high-quality multiple-choice questions**.
+            return f"""You are an **expert professor** in the subject of **{context}**.  
+            Your job is to create **one unique, creative, and non-repetitive multiple-choice question (MCQ)** on the following topic:
 
-            **VERY IMPORTANT Instructions for output format:**
-            - Use clear and unambiguous language.
-            - Each question MUST have four answer options: A, B, C, and D.
-            - The correct answers must be randomly distributed among A, B, C, and D.
-            - Each question MUST be followed by a line that says "Answer: X" where X is the correct choice (A, B, C, or D).
-            - This format MUST be consistent for ALL {num_questions} questions.
-            - ALWAYS write exactly {num_questions} questions as requested.
+            **Topic / Task:** {question}
 
-            **MANDATORY Format:**
+            Please ensure:
+            1. The question is **not generic** or repeated from earlier knowledge.
+            2. The MCQ should test a **specific fact or concept** from the topic.
+            3. The wording, focus, or framing of the question should be different every time this is called.
+            4. Randomize the correct answer between A, B, C, or D.
 
-            Note this : just give the response like this do not give another description or something, 
-            ONCE AGAIN DON'T GIVE ANOTHER DESCRIPTION JUST RETURN BELOW
+            **You MUST follow this format exactly**:
+
+            Question 1:  
             [Full question]  
             A) [Option A]  
             B) [Option B]  
             C) [Option C]  
             D) [Option D]  
-            Answer: [A/B/C/D] 
+            Answer: [A/B/C/D] ← REQUIRED
 
-            **IMPORTANT:** Make sure each question has a clearly defined answer in the format "Answer: X" immediately after option D.  
-            If you do not follow this format precisely, the system will not be able to process the answers correctly.
-
-            **Context:** {context}  
-            **Task:** {question}  
-            **Number of questions to generate: {num_questions}**
+            Only give the question, options, and the answer. Do NOT add anything else.
             """
 
     @staticmethod
@@ -164,6 +145,11 @@ class LLMService:
             prompt = self.format_mcq_prompt(question, context, num_questions, language)
             response = ollama.chat(model=self.model, messages=[{'role': 'user', 'content': prompt}])
             content = response['message']['content']
+            
+            print("\n---------- RAW LLM RESPONSE ----------")
+            print(content)
+            print("--------------------------------------\n")
+            
             parsed_json = parse_mcq_text(content)
 
             if parsed_json["total_questions"] < num_questions:
@@ -177,7 +163,7 @@ class LLMService:
             print(f"Error in generate_mcq: {str(e)}")
             print(traceback.format_exc())
             raise HTTPException(status_code=500, detail=f"Error processing LLM response: {str(e)}")
-
+        
     def generate_json_response(self, question: str, language: str, context: str, num_questions: int = 1):
         try:
             prompt = self.format_mcq_prompt(question, context, num_questions, language)

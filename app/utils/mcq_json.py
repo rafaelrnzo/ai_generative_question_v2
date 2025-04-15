@@ -176,3 +176,36 @@ def parse_single_question(question_content, question_number):
         print(f"  Answer: {answer}")
         print(f"  Raw content: {question_content[:100]}...")
         return None
+    
+    # You are an **experienced lecturer in the field of {context}**. 
+    #         Your task is to create **{num_questions} high-quality multiple-choice questions**.
+
+    #         **CRITICAL FORMATTING INSTRUCTIONS:**
+    #         - Each question must have exactly four options labeled A, B, C, and D.
+    #         - Each question MUST end with "Answer: X" where X is one of A, B, C, or D.
+    #         - DO NOT include any additional text, explanations, or notes - ONLY the questions, options, and answers.
+    #         - Follow EXACTLY the format of the example below.
+    #         - Must contain the option of the answer (A, B, C, D)
+            
+    #         **REQUIRED FORMAT - FOLLOW THIS EXACTLY:**
+    #         always follow this example layout
+    #         this is the example:
+    #         What is the primary display technology used in the Samsung Galaxy S25?
+
+    #         A) OLED
+    #         B) Dynamic LTPO AMOLED 2X
+    #         C) Super AMOLED
+    #         D) Quantum Dot
+
+    #         Answer: B) Dynamic LTPO AMOLED 2X <- this is mandatory
+            
+
+    #         **IMPORTANT:** 
+    #         - The answer MUST be on its own line immediately after option D
+    #         - The answer MUST be in the format "Answer: X" where X is A, B, C, or D
+    #         - Use only one letter for the answer (A, B, C, or D)
+    #         - Do not include any explanations or additional information beyond the question, options, and answer
+
+    #         **Context:** {context}
+    #         **Task:** {question}
+    #         **Number of questions to generate: {num_questions}**
