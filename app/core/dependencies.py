@@ -4,7 +4,7 @@ from langchain_neo4j import Neo4jGraph
 from langchain_community.vectorstores import Neo4jVector
 
 def get_graph_upload(language: str):
-    database = "englishdb" if language == "english" else "testing"
+    database = "englishdb" if language == "english" else "testing2"
     return Neo4jGraph(
         url=NEO4J_URL,
         username=NEO4J_USER,
@@ -27,7 +27,7 @@ def get_vector_retriever():
         url=NEO4J_URL,
         username=NEO4J_USER,
         password=NEO4J_PASSWORD,
-        database="testing",
+        database="testing2",
         node_label="Document",
         text_node_properties=["text"],
         embedding_node_property="embedding"

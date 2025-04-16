@@ -1,8 +1,7 @@
 import json
 import re
 import ollama
-from fastapi import HTTPException, APIRouter, Depends
-from fastapi.responses import JSONResponse
+from fastapi import HTTPException, APIRouter
 from core.config import OLLAMA_HOST, OLLAMA_MODEL
 
 router = APIRouter()
@@ -12,163 +11,146 @@ class EssayService:
         ollama.base_url = OLLAMA_HOST
         self.model = OLLAMA_MODEL
     
-    @staticmethod
-    def format_essay_prompt(question: str, context: str, num_questions=10) -> str:
-        return f"""Anda adalah seorang **dosen berpengalaman dalam bidang {context}**.
-            Buatlah **{num_questions} soal ESSAY** berdasarkan permintaan berikut:
+    def format_essay_prompt(self, question: str, context: str, num_questions=1, language='indonesian') -> str:
+        if language.lower() == "indonesian":
+            return f"""Anda adalah dosen bidang {context}.
+            Buatlah {num_questions} soal ESSAY berdasarkan: {question}
 
-            **PERHATIAN PENTING: JANGAN MEMBUAT SOAL PILIHAN GANDA. SAYA HANYA MEMBUTUHKAN SOAL ESSAY TANPA OPTION A, B, C, D.**
+            Instruksi penting:
+            - Buat HANYA soal essay dengan pertanyaan terbuka
+            - DILARANG membuat soal pilihan ganda atau opsi A), B), C), D)
+            - Setiap soal harus memiliki jawaban yang lengkap
+            - Maksimal soal adalah 1 yang dibuat
+            - Buatkan pertanyaanya secara acak, sehingga tidak akan terjadi pengulangan response yang sama, saya ingin respon nya unik.
 
-            **Instruksi WAJIB untuk format output:**  
-            - **WAJIB membuat soal dalam format ESSAY dengan pertanyaan terbuka.**
-            - **DILARANG KERAS membuat soal pilihan ganda atau multiple choice.**
-            - **DILARANG membuat opsi jawaban dengan format A), B), C), D) atau sejenisnya.**  
-            - **Setiap soal harus berupa pertanyaan yang membutuhkan jawaban panjang dan penjelasan.**  
-            - **Setiap soal harus memiliki jawaban yang lengkap dan komprehensif.**
-            - **Tidak boleh menggunakan huruf A, B, C, atau D dalam soal maupun jawaban.**  
-            - **WAJIB menggunakan format berikut:**  
+            Format output:
+            Soal 1: [Pertanyaan essay]
+            Jawaban: [Jawaban lengkap]
 
-            **FORMAT OUTPUT:**
-            Soal 1:
-            [Tulis pertanyaan ESSAY di sini. Pastikan pertanyaannya kompleks dan membutuhkan jawaban panjang]
-            Jawaban: [Tulis jawaban ESSAY yang lengkap dan mendalam di sini]
+            Soal 2: [Pertanyaan essay]
+            Jawaban: [Jawaban lengkap]
+            """
+        else:
+            return f"""You are a professor in {context}.
+            Create {num_questions} ESSAY questions based on: {question}
 
-            Soal 2:
-            [Tulis pertanyaan ESSAY di sini. Pastikan pertanyaannya kompleks dan membutuhkan jawaban panjang]
-            Jawaban: [Tulis jawaban ESSAY yang lengkap dan mendalam di sini]
+            Important instructions:
+            - Create ONLY essay questions with open-ended format
+            - DO NOT create multiple choice questions or options A), B), C), D)
+            - Each question must have a complete answer
+            - The maximal response of question is 1, don't write more than 1.
+            - Make the question random, so the responses not repetitively, I want the response unique.
 
-            **CONTOH SOAL ESSAY YANG BENAR:**
-            Soal 1: 
-            Jelaskan prinsip kerja sistem bahan bakar pada kapal dan bagaimana komponen-komponennya saling berinteraksi untuk mengoptimalkan efisiensi bahan bakar?
-            Jawaban: Sistem bahan bakar pada kapal terdiri dari beberapa komponen utama yang bekerja secara terintegrasi. Dimulai dari tangki penyimpanan, bahan bakar akan melalui proses pemurnian menggunakan separator dan purifier untuk menghilangkan kontaminan. Kemudian, bahan bakar dipompa ke tangki harian (service tank) sebelum masuk ke sistem injeksi. Dalam proses ini, tekanan dan temperatur bahan bakar harus dijaga pada nilai optimal untuk memastikan atomisasi sempurna saat injeksi ke dalam silinder. Interaksi antar komponen diatur oleh sistem kontrol yang memastikan timing yang tepat antara suplai bahan bakar dan kebutuhan mesin. Efisiensi sistem bergantung pada pemeliharaan filter, kalibrasi pompa, dan keselarasan operasional seluruh komponen.
+            Output format:
+            [Essay question]
+            Answer: [Complete answer]
 
-            **CONTOH SOAL YANG SALAH (JANGAN BUAT SEPERTI INI):**
-            Soal 1:
-            Apa fungsi utama dari MPK dalam sistem bahan bakar kapal?
-            A) Mengatur aliran bahan bakar dari tangki harian
-            B) Menjaga keseimbangan dan kestabilan sistem bahan bakar
-            C) Mengontrol pengeluaran bahan bakar
-            D) Membuat komponen lain dalam sistem bekerja optimal
+            [Essay question]
+            Answer: [Complete answer]
 
-            **Konteks:** {context}  
-            **Jumlah soal:** {num_questions}  
-            **Permintaan pengguna:** {question}
-        """
+            Note: please just give the response like the format, don't give another description, just throw it.
+            """
 
-    def generate_essay(self, question: str, context: str):
-        num_questions = 10  
+    def generate_essay(self, question: str, language: str, context: str):
+        num_questions = 1
+        language = language.lower() if language else "indonesian"
+        
         num_match = re.search(r'(\d+)\s*(?:soal|pertanyaan|question)', question, re.IGNORECASE)
         if num_match:
             num_questions = int(num_match.group(1))
-            print(f"Detected request for {num_questions} questions")
         
         try:
             response = ollama.chat(
                 model=self.model,
-                messages=[{
-                    'role': 'user', 
-                    'content': self.format_essay_prompt(question, context, num_questions)
-                }]
+                messages=[{'role': 'user', 'content': self.format_essay_prompt(question, context, num_questions, language)}]
             )
-            
             content = response['message']['content']
-            print(f"LLM Response (first 300 chars):\n{content[:300]}")  # Debugging
-
+            
             if re.search(r'[A-D]\)', content) or re.search(r'[A-D]\s*\)', content):
-                print("Warning: Detected multiple-choice format in response. Retrying with stronger constraints...")
-                emphasized_prompt = f"""PERHATIAN: Respons sebelumnya masih berisi pilihan ganda dengan opsi A), B), C), D).
-                
-                SAYA SANGAT MENEKANKAN: JANGAN MEMBUAT SOAL PILIHAN GANDA. SAYA HANYA MEMBUTUHKAN SOAL ESSAY.
-
-                Buatlah {num_questions} soal essay tentang {context} tanpa opsi pilihan ganda.
-                Setiap soal harus berupa pertanyaan terbuka yang membutuhkan jawaban penjelasan panjang.
-                Format yang benar adalah:
-
-                Soal 1: [Pertanyaan essay]
-                Jawaban: [Jawaban lengkap]
-
-                Soal 2: [Pertanyaan essay]
-                Jawaban: [Jawaban lengkap]
-
-                Jangan gunakan format A), B), C), D) atau sejenisnya.
-                Pastikan soal merupakan pertanyaan essay yang kompleks sesuai dengan konteks: {context}
-                """
-                
+                retry_prompt = self._get_retry_prompt(language, num_questions, context)
                 response = ollama.chat(
                     model=self.model,
                     messages=[
-                        {'role': 'user', 'content': self.format_essay_prompt(question, context, num_questions)},
+                        {'role': 'user', 'content': self.format_essay_prompt(question, context, num_questions, language)},
                         {'role': 'assistant', 'content': content},
-                        {'role': 'user', 'content': emphasized_prompt}
+                        {'role': 'user', 'content': retry_prompt}
                     ]
                 )
                 content = response['message']['content']
-                print(f"Second attempt response (first 300 chars):\n{content[:300]}")
 
-            parsed_json = self.parse_essay_text(content, num_questions)
+            parsed_json = self.parse_essay_text(content, num_questions, language)
 
             if parsed_json["total_questions"] < num_questions:
-                print("Warning: Incomplete questions extracted. Retrying with a modified prompt...")
-                new_prompt = f"""Saya perlu tepat {num_questions} soal essay tentang {context}.
-                
-                Jawaban Anda sebelumnya hanya menghasilkan {parsed_json["total_questions"]} soal yang dapat diidentifikasi.
-                
-                Mohon berikan {num_questions} soal essay dengan format yang jelas:
-                
-                Soal 1: [Pertanyaan essay]
-                Jawaban: [Jawaban lengkap]
-                
-                Soal 2: [Pertanyaan essay]
-                Jawaban: [Jawaban lengkap]
-                
-                Dan seterusnya hingga Soal {num_questions}.
-                """
-                
+                completion_prompt = self._get_completion_prompt(language, num_questions, parsed_json["total_questions"], context)
                 response = ollama.chat(
                     model=self.model,
                     messages=[
-                        {'role': 'user', 'content': self.format_essay_prompt(question, context, num_questions)},
+                        {'role': 'user', 'content': self.format_essay_prompt(question, context, num_questions, language)},
                         {'role': 'assistant', 'content': content},
-                        {'role': 'user', 'content': new_prompt}
+                        {'role': 'user', 'content': completion_prompt}
                     ]
                 )
                 content = response['message']['content']
-                parsed_json = self.parse_essay_text(content, num_questions)
+                parsed_json = self.parse_essay_text(content, num_questions, language)
 
-            # Post-process to remove any remaining multiple-choice formatting
-            self.clean_multiple_choice_format(parsed_json)
+            self.clean_multiple_choice_format(parsed_json, language)
             
             return parsed_json
             
         except Exception as e:
-            import traceback
-            print(f"Error in generate_essay: {str(e)}\n{traceback.format_exc()}")
             raise HTTPException(status_code=500, detail=f"Error processing LLM response: {str(e)}")
     
+    def _get_retry_prompt(self, language, num_questions, context):
+        if language == "indonesian":
+            return f"PERHATIAN: Jangan buat pilihan ganda. Saya HANYA butuh {num_questions} soal ESSAY tanpa opsi A/B/C/D."
+        else:
+            return f"ATTENTION: Do not create multiple choice. I ONLY need {num_questions} ESSAY questions without A/B/C/D options."
+    
+    def _get_completion_prompt(self, language, expected, actual, context):
+        if language == "indonesian":
+            return f"Saya perlu tepat {expected} soal essay tentang {context}. Jawaban sebelumnya hanya berisi {actual} soal."
+        else:
+            return f"I need exactly {expected} essay questions about {context}. Your previous answer only contained {actual} questions."
+    
     @staticmethod
-    def clean_multiple_choice_format(parsed_json):
-        """Remove any remaining multiple-choice formatting from questions and answers"""
+    def clean_multiple_choice_format(parsed_json, language='indonesian'):
         for q in parsed_json["questions"]:
-            # Remove any options like A), B), C), D) from both questions and answers
             q["question"] = re.sub(r'\n[A-D]\)[^\n]+', '', q["question"])
             q["answer"] = re.sub(r'\n[A-D]\)[^\n]+', '', q["answer"])
             
-            # If the question still looks like a multiple-choice stem, expand it
             if len(q["question"].strip()) < 100 and not q["question"].strip().endswith('?'):
-                q["question"] = f"Jelaskan secara detail tentang {q['question'].strip()}?"
-    
+                if language.lower() == "indonesian":
+                    q["question"] = f"Jelaskan secara detail tentang {q['question'].strip()}?"
+                else:
+                    q["question"] = f"Explain in detail about {q['question'].strip()}?"
+
     @staticmethod
-    def parse_essay_text(content: str, expected_count=10):
+    def clean_text(text: str) -> str:
+        text = re.sub(r'[\*\-\•]\s*', '', text)           # Hilangkan simbol bullet
+        text = re.sub(r'\n+', ' ', text)                  # Ubah newline ke spasi
+        text = re.sub(r'\s{2,}', ' ', text).strip()       # Bersihkan spasi berlebih
+        return text
+
+    @staticmethod
+    def parse_essay_text(content: str, expected_count=1, language='indonesian'):
         questions = []
         
-        # More robust regex pattern to extract questions and answers
-        pattern = r'(?:Soal\s*(\d+):?|(?<!\w)(\d+)\.)\s*(.*?)(?:\n+(?:Jawaban:?|Jawaban\s*\d+:?)\s*(.*?)(?=\n+(?:Soal\s*\d+:|(?<!\w)\d+\.)|$))'
+        question_label = "Soal" if language == "indonesian" else "Question"
+        answer_label = "Jawaban" if language == "indonesian" else "Answer"
+        
+        pattern = fr'(?:{question_label}\s*(\d+):?|(?<!\w)(\d+)\.)\s*(.*?)(?:\n+(?:{answer_label}:?|{answer_label}\s*\d+:?)\s*(.*?)(?=\n+(?:{question_label}\s*\d+:|(?<!\w)\d+\.)|$))'
         matches = re.findall(pattern, content, re.DOTALL)
         
-        if not matches:
-            # Fallback pattern if the first one doesn't work
-            question_pattern = r'(?:^|\n)(?:Soal\s*\d+:?|(?<!\w)\d+\.)?\s*(.*?)(?=\n+(?:Jawaban:?|Jawaban\s*\d+:?))'
-            answer_pattern = r'(?:Jawaban:?|Jawaban\s*\d+:?)\s*(.*?)(?=\n+(?:Soal\s*\d+:|(?<!\w)\d+\.)|$)'
+        if matches:
+            for i, match in enumerate(matches):
+                questions.append({
+                    "number": i + 1,
+                    "question": EssayService.clean_text(match[2]),
+                    "answer": EssayService.clean_text(match[3])
+                })
+        else:
+            question_pattern = fr'(?:^|\n)(?:{question_label}\s*\d+:?|(?<!\w)\d+\.)?\s*(.*?)(?=\n+(?:{answer_label}:?|{answer_label}\s*\d+:?))'
+            answer_pattern = fr'(?:{answer_label}:?|{answer_label}\s*\d+:?)\s*(.*?)(?=\n+(?:{question_label}\s*\d+:|(?<!\w)\d+\.)|$)'
             
             question_matches = re.findall(question_pattern, content, re.DOTALL)
             answer_matches = re.findall(answer_pattern, content, re.DOTALL)
@@ -176,29 +158,14 @@ class EssayService:
             for i in range(min(len(question_matches), len(answer_matches))):
                 questions.append({
                     "number": i + 1,
-                    "question": question_matches[i].strip(),
-                    "answer": answer_matches[i].strip()
+                    "question": EssayService.clean_text(question_matches[i]),
+                    "answer": EssayService.clean_text(answer_matches[i])
                 })
-        else:
-            for i, match in enumerate(matches):
-                num = match[0] if match[0] else match[1]
-                question = match[2].strip()
-                answer = match[3].strip()
-                
-                questions.append({
-                    "number": i + 1,  # Use sequential numbering for consistency
-                    "question": question,
-                    "answer": answer
-                })
-        
-        if len(questions) < expected_count:
-            print(f"Warning: Only {len(questions)} out of {expected_count} questions extracted!")
-            print("Raw content sample:\n", content[:1000])  # Show first 1000 chars
 
         return {
             "total_questions": len(questions),
             "questions": questions
         }
         
-    def generate_json_response(self, question: str, context: str):
-        return self.generate_essay(question, context)
+    def generate_json_response(self, question: str, language: str, context: str):
+        return self.generate_essay(question, language, context)
