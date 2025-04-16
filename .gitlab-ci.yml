@@ -1,0 +1,17 @@
+stages:
+  - deploy
+
+deploy_app:
+  stage: deploy
+  script:
+    - echo "Marking safe directory for Git..."
+    - git config --global --add safe.directory 'C:/Users/FIT/ai_proj/ai_generative_question_v2'
+    - echo "Pulling latest changes..."
+    - cd 'C:\Users\FIT\ai_proj\ai_generative_question_v2'
+    - git pull origin neo4j_version
+    - echo "Running FastAPI app with Uvicorn..."
+    - cd app
+    - docker build -t app .
+    - echo "Stopping and removing existing container if exists..."
+    - docker rm -f fastapi_app || true
+    - docker run -d -p 8002:8002 --name fastapi_app app
