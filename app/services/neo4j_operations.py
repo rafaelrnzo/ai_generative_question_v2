@@ -101,81 +101,35 @@ def query_rag_mcq(question, vector_retriever, graph, language):
             "message": str(e)
         }
 
-def delete_data_from_neo4j(name, graph):
-    logging.info(f"Attempting to delete data related to: {name}")
-    
-    try:
-        count_query = """
-        MATCH (n)
-        WHERE toLower(n.name) CONTAINS toLower($name) OR 
-              toLower(n.id) CONTAINS toLower($name) OR
-              (n.text IS NOT NULL AND toLower(n.text) CONTAINS toLower($name))
-        RETURN count(n) as count
-        """
-        
-        count_result = graph.query(count_query, {"name": name})
-        nodes_to_delete = count_result[0]["count"] if count_result else 0
-        
-        if nodes_to_delete == 0:
-            logging.info(f"No nodes found matching: {name}")
-            return 0
+def delete_data_from_neo4j(filename: str, language: str, graph):
+    query = """
+    MATCH (n)
+    WHERE toLower(n.title) CONTAINS $filename AND toLower(n.language) = $language
+    DETACH DELETE n
+    RETURN count(n) AS deleted_count
+    """
+    result = graph.query(query, params={"filename": filename.lower(), "language": language.lower()})
+    return result[0]["deleted_count"] if result else 0
 
-        check_query = """
-        MATCH (n)
-        WHERE toLower(n.name) CONTAINS toLower($name) OR 
-              toLower(n.id) CONTAINS toLower($name) OR
-              (n.text IS NOT NULL AND toLower(n.text) CONTAINS toLower($name))
-        RETURN n.name, n.id, labels(n) as labels
-        LIMIT 10
-        """
-        
-        check_result = graph.query(check_query, {"name": name})
-        logging.info(f"Found {len(check_result)} sample nodes matching '{name}':")
-        for node in check_result:
-            logging.info(f"  - {node}")
-            
-        relationships_query = """
-        MATCH (n)-[r]-(m)
-        WHERE toLower(n.name) CONTAINS toLower($name) OR 
-              toLower(n.id) CONTAINS toLower($name) OR
-              (n.text IS NOT NULL AND toLower(n.text) CONTAINS toLower($name))
-        DELETE r
-        """
-        
-        graph.query(relationships_query, {"name": name})
-        logging.info(f"Deleted relationships connected to nodes matching: {name}")
-        
-        delete_query = """
-        MATCH (n)
-        WHERE toLower(n.name) CONTAINS toLower($name) OR 
-              toLower(n.id) CONTAINS toLower($name) OR
-              (n.text IS NOT NULL AND toLower(n.text) CONTAINS toLower($name))
-        DELETE n
-        """
-        
-        graph.query(delete_query, {"name": name})
-        
-        verify_query = """
-        MATCH (n)
-        WHERE toLower(n.name) CONTAINS toLower($name) OR 
-              toLower(n.id) CONTAINS toLower($name) OR
-              (n.text IS NOT NULL AND toLower(n.text) CONTAINS toLower($name))
-        RETURN count(n) as remaining
-        """
-        
-        verify_result = graph.query(verify_query, {"name": name})
-        remaining = verify_result[0]["remaining"] if verify_result else 0
-        
-        deleted_count = nodes_to_delete - remaining
-        
-        if remaining > 0:
-            logging.warning(f"Deletion incomplete. {remaining} nodes still remain.")
-        else:
-            logging.info("Deletion verified. No matching nodes remain.")
-        
-        logging.info(f"Successfully deleted {deleted_count} nodes matching: {name}")
-        return deleted_count
-        
-    except Exception as e:
-        logging.error(f"Error deleting data for '{name}': {str(e)}")
-        raise
+
+def create_nodes_from_text(text: str, filename: str, graph):
+    query = """
+    CREATE (d:Document {filename: $filename, content: $content})
+    """
+    graph.run(query, filename=filename, content=text)
+
+def flush_db(graph):
+    query = """
+    MATCH (n) DETACH DELETE n
+    """
+    result = graph.query(query)
+    return "success"
+
+def topic_exists(topic: str, graph) -> bool:
+    query = """
+    MATCH (n:Concept)
+    WHERE toLower(n.name) CONTAINS toLower($topic)
+    RETURN COUNT(n) > 0 AS exists
+    """
+    result = graph.run(query, topic=topic).evaluate()
+    return result

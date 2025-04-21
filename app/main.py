@@ -16,7 +16,7 @@ app.include_router(query.router)
 app.include_router(upload.router)
 app.include_router(delete.router)
 app.include_router(files.router)
-app.include_router(health.router)
+# app.include_router(health.router)
 
 @app.get("/")
 async def root():

@@ -23,10 +23,11 @@ class UploadResponse(BaseModel):
     document_count: int = Field(..., description="Number of documents stored from the upload.")
     message: str = Field(..., description="Status message of the upload process.")
 
-class DeleteByNameRequest(BaseModel):
-    name: str = Field(..., description="Name of the document or file to delete.")
-    delete_file: bool = Field(default=False, description="Whether to also delete the uploaded file.")
-
+class DeleteRequest(BaseModel):
+    filename: str
+    language: str
+    
 class DeleteResponse(BaseModel):
-    message: str = Field(..., description="Result message of the delete operation.")
-    deleted_nodes: int = Field(..., description="Number of nodes deleted from the database.")
+    message: str
+    deleted_nodes: int
+    recompiled_files: List[str]

@@ -24,11 +24,13 @@ class EssayService:
             - Buatkan pertanyaanya secara acak, sehingga tidak akan terjadi pengulangan response yang sama, saya ingin respon nya unik.
 
             Format output:
-            Soal 1: [Pertanyaan essay]
+            [Pertanyaan essay]
             Jawaban: [Jawaban lengkap]
 
-            Soal 2: [Pertanyaan essay]
+            [Pertanyaan essay]
             Jawaban: [Jawaban lengkap]
+            
+            catatan: hanya sertakan format yang terkait, mohon untuk tidak berikan deskripsi tambahan terkait dengan response yang diberikan
             """
         else:
             return f"""You are a professor in {context}.
@@ -126,9 +128,9 @@ class EssayService:
 
     @staticmethod
     def clean_text(text: str) -> str:
-        text = re.sub(r'[\*\-\•]\s*', '', text)           # Hilangkan simbol bullet
-        text = re.sub(r'\n+', ' ', text)                  # Ubah newline ke spasi
-        text = re.sub(r'\s{2,}', ' ', text).strip()       # Bersihkan spasi berlebih
+        text = re.sub(r'[\*\-\•]\s*', '', text)           
+        text = re.sub(r'\n+', ' ', text)                  
+        text = re.sub(r'\s{2,}', ' ', text).strip()
         return text
 
     @staticmethod
