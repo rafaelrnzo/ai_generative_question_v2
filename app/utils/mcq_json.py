@@ -137,9 +137,10 @@ def parse_single_question(question_content, question_number):
                 options[option_letter] = re.sub(r'\s*(?:\(correct\)|\(right\)|\(true\))\s*', '', options[option_letter], flags=re.IGNORECASE)
                 break
     
-    if not answer and all(options.values()):
-        print(f"Warning: No answer found for question {question_number}. Using default answer A.")
-        answer = 'A'
+    # Menghapus default answer 'A'
+    # if not answer and all(options.values()):
+    #     print(f"Warning: No answer found for question {question_number}. Using default answer A.")
+    #     answer = 'A'
     
     has_all_options = all(options.values())
     print(f"Question {question_number} parsing:")
@@ -156,7 +157,7 @@ def parse_single_question(question_content, question_number):
             "answer": answer
         }
     else:
-        print(f"Missing data for question {question_number}:")
+        print(f"Question not detected or incomplete for question {question_number}:")
         print(f"  Question text: {bool(question_text)}")
         print(f"  Options: {options}")
         print(f"  Answer: {answer}")

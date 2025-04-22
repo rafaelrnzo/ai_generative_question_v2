@@ -13,65 +13,65 @@ class LLMService:
     def format_mcq_prompt(self, question: str, context: str, num_questions=1, language='indonesian') -> str:
         if language.lower() == "indonesian":
             return f"""Anda adalah seorang profesional berpengalaman di bidang **{context}**.  
-            Tugas Anda adalah membuat **1 soal pilihan ganda (MCQ)** yang **unik, kreatif**, dan **tidak boleh berulang**, berdasarkan topik berikut:
+Tugas Anda adalah membuat **1 soal pilihan ganda (MCQ)** yang **unik, kreatif**, dan **tidak boleh berulang**, berdasarkan topik berikut:
 
-            **Topik / Permintaan:** {question}
+**Topik / Permintaan:** {question}
 
-            **Petunjuk penting yang HARUS diikuti:**
-            1. Soal yang dibuat harus **berbeda setiap kali** (tidak boleh mengulang atau terlalu mirip).
-            2. Soal harus **berdasarkan fakta yang benar** dan relevan dengan topik.
-            3. Gunakan **variasi dalam kata-kata, fokus, dan sudut pandang** agar tidak repetitif.
-            4. Jawaban benar harus **acak secara konsisten** di antara A, B, C, atau D.
-            5. Jangan sertakan penjelasan, deskripsi, atau ucapan apa pun — cukup soal, opsi, dan jawaban.
+**Petunjuk penting yang HARUS diikuti:**
+1. Soal yang dibuat harus **berbeda setiap kali** (tidak boleh mengulang atau terlalu mirip).
+2. Soal harus **berdasarkan fakta yang benar** dan relevan dengan topik.
+3. Gunakan **variasi dalam kata-kata, fokus, dan sudut pandang** agar tidak repetitif.
+4. Jawaban benar harus **acak secara konsisten** di antara A, B, C, atau D.
+5. Jangan sertakan penjelasan, deskripsi, atau ucapan apa pun — cukup soal, opsi, dan jawaban.
 
-            **Format WAJIB (ikuti persis seperti ini):**
+**Format WAJIB (ikuti persis seperti ini):**
 
-            [Soal lengkap]  
-            A) [Pilihan A]  
-            B) [Pilihan B]  
-            C) [Pilihan C]  
-            D) [Pilihan D]  
-            Jawaban: [A/B/C/D] ← HARUS ADA!
+[Soal lengkap]  
+A) [Pilihan A]  
+B) [Pilihan B]  
+C) [Pilihan C]  
+D) [Pilihan D]  
+Jawaban: [A/B/C/D] ← HARUS ADA!
 
-            **Catatan:**
-            - Jangan menambahkan penjelasan, catatan kaki, atau konteks tambahan apa pun.
-            - Jika Anda tidak mengikuti format ini, maka soal akan ditolak.
-            """
+**Catatan:**
+- Jangan menambahkan penjelasan, catatan kaki, atau konteks tambahan apa pun.
+- Jika Anda tidak mengikuti format ini, maka soal akan ditolak.
+"""
 
         elif language.lower() == "english":
             return f"""You are an **expert professor** in the subject of **{context}**.  
-            Your job is to create **one unique, creative, and non-repetitive multiple-choice question (MCQ)** on the following topic:
+Your job is to create **one unique, creative, and non-repetitive multiple-choice question (MCQ)** on the following topic:
 
-            **Topic / Task:** {question}
+**Topic / Task:** {question}
 
-            Please ensure:
-            1. The question is **not generic** or repeated from earlier knowledge.
-            2. The MCQ should test a **specific fact or concept** from the topic.
-            3. The wording, focus, or framing of the question should be different every time this is called.
-            4. Randomize the correct answer between A, B, C, or D.
+Please ensure:
+1. The question is **not generic** or repeated from earlier knowledge.
+2. The MCQ should test a **specific fact or concept** from the topic.
+3. The wording, focus, or framing of the question should be different every time this is called.
+4. Randomize the correct answer between A, B, C, or D.
 
-            **You MUST follow this format exactly**:
+**You MUST follow this format exactly**:
 
-            Question 1:  
-            [Full question]  
-            A) [Option A]  
-            B) [Option B]  
-            C) [Option C]  
-            D) [Option D]  
-            Answer: [A/B/C/D] ← REQUIRED
+Question 1:  
+[Full question]  
+A) [Option A]  
+B) [Option B]  
+C) [Option C]  
+D) [Option D]  
+Answer: [A/B/C/D] ← REQUIRED
 
-            Only give the question, options, and the answer. Do NOT add anything else.
-            """
+Only give the question, options, and the answer. Do NOT add anything else.
+"""
 
     @staticmethod
-    def enhance_content_format(content: str) -> str: 
+    def enhance_content_format(content: str) -> str:
         lines = content.split('\n')
         enhanced_lines = []
         option_count = 0
-        
+
         is_english = any(term in content for term in ["Question", "Answer:", "Correct", "The answer is"])
         answer_marker = "Answer:" if is_english else "Jawaban:"
-        
+
         question_pattern = r'(?:\*\*)?(?:Question|Soal)\s+(\d+)(?:\*\*)?[:\.]?'
         alt_question_pattern = r'^\s*(\d+)[\.\:]\s*(.*)$'
 
@@ -82,6 +82,7 @@ class LLMService:
         for line in lines:
             stripped = line.strip()
 
+            # Detect start of question
             if re.search(question_pattern, stripped) or re.search(alt_question_pattern, stripped):
                 if option_count > 0 and not has_seen_answer:
                     enhanced_lines.append(f"{answer_marker} A")
@@ -92,6 +93,7 @@ class LLMService:
                 enhanced_lines.append(line)
                 continue
 
+            # Detect options A-D
             option_match = re.match(r'^([A-D])[\s\)\.:]+\s*(.*)', stripped)
             if option_match:
                 option_count += 1
@@ -102,6 +104,7 @@ class LLMService:
                 enhanced_lines.append(f"{label}) {text}")
                 continue
 
+            # Try to detect answer
             answer_patterns = [
                 r'(?:[Jj]awaban|[Aa]nswer)[\s\:\=]+([A-D])',
                 r'[Cc]orrect\s+[Aa]nswer[\s\:\=]+([A-D])',
@@ -109,7 +112,6 @@ class LLMService:
                 r'[Tt]he\s+[Aa]nswer\s+is[\s\:\=]+([A-D])',
                 r'[Kk]ey[\s\:\=]+([A-D])'
             ]
-
             for pattern in answer_patterns:
                 match = re.search(pattern, stripped)
                 if match:
@@ -120,13 +122,14 @@ class LLMService:
                         break
             else:
                 if option_count == 4 and not has_seen_answer and all(opt in current_options for opt in ['A', 'B', 'C', 'D']):
-                    enhanced_lines.append(f"{answer_marker} A")
-                    has_seen_answer = True
+                    # Removed default answer assignment here
+                    pass
 
             enhanced_lines.append(line)
 
-        if option_count > 0 and not has_seen_answer:
-            enhanced_lines.append(f"{answer_marker} A")
+        # Removed default answer at the end
+        # if option_count > 0 and not has_seen_answer:
+        #     enhanced_lines.append(f"{answer_marker} A")
 
         return '\n'.join(enhanced_lines)
 
@@ -140,13 +143,27 @@ class LLMService:
                 num_questions = int(num_match.group(1))
 
             prompt = self.format_mcq_prompt(question, context, num_questions, language)
-            response = ollama.chat(model=self.model, messages=[{'role': 'user', 'content': prompt}])
-            content = response['message']['content']
             
+            # Disable cache by adding options parameter
+            response = ollama.chat(
+                model=self.model, 
+                messages=[{'role': 'user', 'content': prompt}],
+                options={
+                    "num_ctx": 4096,  # Ensure sufficient context window
+                    "temperature": 0.7,  # Add some randomness for variety
+                    "top_p": 0.9,  # Use nucleus sampling for more diversity
+                    "top_k": 40,  # Limit to top 40 tokens for better quality
+                    "cache": False,  # Disable response caching
+                    "seed": -1  # Use a random seed every time (-1 means random)
+                }
+            )
+            
+            content = response['message']['content']
+
             print("\n---------- RAW LLM RESPONSE ----------")
             print(content)
             print("--------------------------------------\n")
-            
+
             parsed_json = parse_mcq_text(content)
 
             if parsed_json["total_questions"] < num_questions:
@@ -160,11 +177,24 @@ class LLMService:
             print(f"Error in generate_mcq: {str(e)}")
             print(traceback.format_exc())
             raise HTTPException(status_code=500, detail=f"Error processing LLM response: {str(e)}")
-        
+
     def generate_json_response(self, question: str, language: str, context: str, num_questions: int = 1):
         try:
             prompt = self.format_mcq_prompt(question, context, num_questions, language)
-            response = ollama.chat(model=self.model, messages=[{'role': 'user', 'content': prompt}])
+            
+            response = ollama.chat(
+                model=self.model, 
+                messages=[{'role': 'user', 'content': prompt}],
+                options={
+                    "num_ctx": 4096,
+                    "temperature": 0.7,
+                    "top_p": 0.9,
+                    "top_k": 40,
+                    "cache": False,
+                    "seed": -1
+                }
+            )
+            
             return {
                 "response": response['message']['content'],
                 "type": "general_query"

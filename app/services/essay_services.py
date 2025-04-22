@@ -110,7 +110,7 @@ class EssayService:
     
     def _get_completion_prompt(self, language, expected, actual, context):
         if language == "indonesian":
-            return f"Saya perlu tepat {expected} soal essay tentang {context}. Jawaban sebelumnya hanya berisi {actual} soal."
+               return f"Saya perlu tepat {expected} soal essay tentang {context}. Jawaban sebelumnya hanya berisi {actual} soal."
         else:
             return f"I need exactly {expected} essay questions about {context}. Your previous answer only contained {actual} questions."
     
