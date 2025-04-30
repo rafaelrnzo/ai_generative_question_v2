@@ -1,173 +1,112 @@
+from langchain_ollama import ChatOllama
+from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.prompts import PromptTemplate
+from pydantic import BaseModel, Field
 import json
-import re
-import ollama
-from fastapi import HTTPException, APIRouter
-from core.config import OLLAMA_HOST, OLLAMA_MODEL
+from uuid import uuid4
+from core.config import OLLAMA_MODEL, OLLAMA_HOST
+from langchain_core.runnables import RunnablePassthrough
+from langchain.schema.runnable import RunnableMap
+from typing import Optional
+from core.dependencies import get_vector_retriever_en, get_vector_retriever
 
-router = APIRouter()
+
+class Essay(BaseModel):
+    question: str = Field(description="A realistic and informative essay question.")
+    answer: str = Field(description="A concise answer to the question.")
+
 
 class EssayService:
-    def __init__(self):
-        ollama.base_url = OLLAMA_HOST
-        self.model = OLLAMA_MODEL
-    
-    def format_essay_prompt(self, question: str, context: str, num_questions=1, language='indonesian') -> str:
-        if language.lower() == "indonesian":
-            return f"""Anda adalah dosen bidang {context}.
-            Buatlah {num_questions} soal ESSAY berdasarkan: {question}
+    def __init__(self, language: str):
+        self.model_name = OLLAMA_MODEL
 
-            Instruksi penting:
-            - Buat HANYA soal essay dengan pertanyaan terbuka
-            - DILARANG membuat soal pilihan ganda atau opsi A), B), C), D)
-            - Setiap soal harus memiliki jawaban yang lengkap
-            - Maksimal soal adalah 1 yang dibuat
-            - Buatkan pertanyaanya secara acak, sehingga tidak akan terjadi pengulangan response yang sama, saya ingin respon nya unik.
+        self.model = ChatOllama(
+            base_url=OLLAMA_HOST,
+            model=OLLAMA_MODEL,
+            temperature=0.7,
+            options={
+                "num_ctx": 1024,
+                "temperature": 0.7,
+                "top_p": 0.9,
+                "top_k": 40,
+                "cache": False,
+                "seed": -1
+            }
+        )
 
-            Format output:
-            [Pertanyaan essay]
-            Jawaban: [Jawaban lengkap]
+        self.parser = JsonOutputParser(pydantic_object=Essay)
 
-            [Pertanyaan essay]
-            Jawaban: [Jawaban lengkap]
-            
-            catatan: hanya sertakan format yang terkait, mohon untuk tidak berikan deskripsi tambahan terkait dengan response yang diberikan
-            """
-        else:
-            return f"""You are a professor in {context}.
-            Create {num_questions} ESSAY questions based on: {question}
+        prompt_template_en = (
+            "You are a JSON-only API that returns one high-quality essay question and its answer.\n"
+            "Respond with ONLY a valid JSON object, no explanations, no extra text. All values must be REAL and COMPLETE.\n\n"
+            "Use the following context to generate a meaningful question and answer:\n"
+            "Context:\n{context}\n\n"
+            "User query: {query}\n\n"
+            "Return exactly in the following JSON format:\n"
+            '{{\n'
+            '  "question": "A clear, standalone essay question based on the context.",\n'
+            '  "answer": "A well-structured and informative answer to the question."\n'
+            '}}'
+        )
 
-            Important instructions:
-            - Create ONLY essay questions with open-ended format
-            - DO NOT create multiple choice questions or options A), B), C), D)
-            - Each question must have a complete answer
-            - The maximal response of question is 1, don't write more than 1.
-            - Make the question random, so the responses not repetitively, I want the response unique.
+        prompt_template_id = (
+            "Kamu adalah API JSON-only yang menghasilkan satu pertanyaan esai berkualitas tinggi dan jawabannya.\n"
+            "Hanya berikan OBJEK JSON valid, tanpa penjelasan atau teks tambahan. Semua nilai harus NYATA dan LENGKAP.\n\n"
+            "Gunakan konteks berikut untuk membuat pertanyaan dan jawaban yang bermakna:\n"
+            "Konteks:\n{context}\n\n"
+            "Permintaan pengguna: {query}\n\n"
+            "Kembalikan dalam format JSON persis seperti ini:\n"
+            '{{\n'
+            '  "question": "Pertanyaan esai yang jelas dan berdiri sendiri berdasarkan konteks.",\n'
+            '  "answer": "Jawaban yang terstruktur dan informatif untuk pertanyaan tersebut."\n'
+            '}}'
+        )
 
-            Output format:
-            [Essay question]
-            Answer: [Complete answer]
+        self.prompt = PromptTemplate(
+            template=prompt_template_en if language == "english" else prompt_template_id,
+            input_variables=["query", "context"]
+        )
 
-            [Essay question]
-            Answer: [Complete answer]
+        self.retriever = get_vector_retriever_en() if language == "english" else get_vector_retriever()
 
-            Note: please just give the response like the format, don't give another description, just throw it.
-            """
+        self.chain = RunnableMap({
+            "context": lambda x: self.retriever.get_relevant_documents(x["query"]),
+            "query": lambda x: x["query"]
+        }) | self.prompt | self.model | self.parser
 
-    def generate_essay(self, question: str, language: str, context: str):
-        num_questions = 1
-        language = language.lower() if language else "indonesian"
-        
-        num_match = re.search(r'(\d+)\s*(?:soal|pertanyaan|question)', question, re.IGNORECASE)
-        if num_match:
-            num_questions = int(num_match.group(1))
-        
+    def run(self, query: str):
+        random_id = str(uuid4())[:8]
+        full_query = f"({random_id}) {query}"
+
         try:
-            response = ollama.chat(
-                model=self.model,
-                messages=[{'role': 'user', 'content': self.format_essay_prompt(question, context, num_questions, language)}]
-            )
-            content = response['message']['content']
-            
-            if re.search(r'[A-D]\)', content) or re.search(r'[A-D]\s*\)', content):
-                retry_prompt = self._get_retry_prompt(language, num_questions, context)
-                response = ollama.chat(
-                    model=self.model,
-                    messages=[
-                        {'role': 'user', 'content': self.format_essay_prompt(question, context, num_questions, language)},
-                        {'role': 'assistant', 'content': content},
-                        {'role': 'user', 'content': retry_prompt}
+            result = self.chain.invoke({"query": full_query})
+            print("LLM Result:", result)
+
+            if not result:
+                raise ValueError("No response returned from the model.")
+
+            return {
+                "status": "success",
+                "query": query,
+                "response": {
+                    "questions": [
+                        {
+                            "question": result["question"],
+                            "answer": result["answer"]
+                        }
                     ]
-                )
-                content = response['message']['content']
+                },
+                "metadata": {
+                    "model": self.model_name,
+                    "rag": True,
+                    "document_chunks": 4,
+                    "type": "Essay"
+                }
+            }
 
-            parsed_json = self.parse_essay_text(content, num_questions, language)
-
-            if parsed_json["total_questions"] < num_questions:
-                completion_prompt = self._get_completion_prompt(language, num_questions, parsed_json["total_questions"], context)
-                response = ollama.chat(
-                    model=self.model,
-                    messages=[
-                        {'role': 'user', 'content': self.format_essay_prompt(question, context, num_questions, language)},
-                        {'role': 'assistant', 'content': content},
-                        {'role': 'user', 'content': completion_prompt}
-                    ]
-                )
-                content = response['message']['content']
-                parsed_json = self.parse_essay_text(content, num_questions, language)
-
-            self.clean_multiple_choice_format(parsed_json, language)
-            
-            return parsed_json
-            
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error processing LLM response: {str(e)}")
-    
-    def _get_retry_prompt(self, language, num_questions, context):
-        if language == "indonesian":
-            return f"PERHATIAN: Jangan buat pilihan ganda. Saya HANYA butuh {num_questions} soal ESSAY tanpa opsi A/B/C/D."
-        else:
-            return f"ATTENTION: Do not create multiple choice. I ONLY need {num_questions} ESSAY questions without A/B/C/D options."
-    
-    def _get_completion_prompt(self, language, expected, actual, context):
-        if language == "indonesian":
-               return f"Saya perlu tepat {expected} soal essay tentang {context}. Jawaban sebelumnya hanya berisi {actual} soal."
-        else:
-            return f"I need exactly {expected} essay questions about {context}. Your previous answer only contained {actual} questions."
-    
-    @staticmethod
-    def clean_multiple_choice_format(parsed_json, language='indonesian'):
-        for q in parsed_json["questions"]:
-            q["question"] = re.sub(r'\n[A-D]\)[^\n]+', '', q["question"])
-            q["answer"] = re.sub(r'\n[A-D]\)[^\n]+', '', q["answer"])
-            
-            if len(q["question"].strip()) < 100 and not q["question"].strip().endswith('?'):
-                if language.lower() == "indonesian":
-                    q["question"] = f"Jelaskan secara detail tentang {q['question'].strip()}?"
-                else:
-                    q["question"] = f"Explain in detail about {q['question'].strip()}?"
-
-    @staticmethod
-    def clean_text(text: str) -> str:
-        text = re.sub(r'[\*\-\•]\s*', '', text)           
-        text = re.sub(r'\n+', ' ', text)                  
-        text = re.sub(r'\s{2,}', ' ', text).strip()
-        return text
-
-    @staticmethod
-    def parse_essay_text(content: str, expected_count=1, language='indonesian'):
-        questions = []
-        
-        question_label = "Soal" if language == "indonesian" else "Question"
-        answer_label = "Jawaban" if language == "indonesian" else "Answer"
-        
-        pattern = fr'(?:{question_label}\s*(\d+):?|(?<!\w)(\d+)\.)\s*(.*?)(?:\n+(?:{answer_label}:?|{answer_label}\s*\d+:?)\s*(.*?)(?=\n+(?:{question_label}\s*\d+:|(?<!\w)\d+\.)|$))'
-        matches = re.findall(pattern, content, re.DOTALL)
-        
-        if matches:
-            for i, match in enumerate(matches):
-                questions.append({
-                    "number": i + 1,
-                    "question": EssayService.clean_text(match[2]),
-                    "answer": EssayService.clean_text(match[3])
-                })
-        else:
-            question_pattern = fr'(?:^|\n)(?:{question_label}\s*\d+:?|(?<!\w)\d+\.)?\s*(.*?)(?=\n+(?:{answer_label}:?|{answer_label}\s*\d+:?))'
-            answer_pattern = fr'(?:{answer_label}:?|{answer_label}\s*\d+:?)\s*(.*?)(?=\n+(?:{question_label}\s*\d+:|(?<!\w)\d+\.)|$)'
-            
-            question_matches = re.findall(question_pattern, content, re.DOTALL)
-            answer_matches = re.findall(answer_pattern, content, re.DOTALL)
-            
-            for i in range(min(len(question_matches), len(answer_matches))):
-                questions.append({
-                    "number": i + 1,
-                    "question": EssayService.clean_text(question_matches[i]),
-                    "answer": EssayService.clean_text(answer_matches[i])
-                })
-
-        return {
-            "total_questions": len(questions),
-            "questions": questions
-        }
-        
-    def generate_json_response(self, question: str, language: str, context: str):
-        return self.generate_essay(question, language, context)
+            print("ERROR:", e)
+            return {
+                "status": "error",
+                "message": str(e)
+            }

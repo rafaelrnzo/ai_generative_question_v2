@@ -26,7 +26,7 @@ def get_vector_retriever():
         search_type="hybrid",
         url=NEO4J_URL,
         username=NEO4J_USER,
-        password=NEO4J_PASSWORD,
+        password=NEO4J_PASSWORD,            
         database="testing2",
         node_label="Document",
         text_node_properties=["text"],

@@ -47,8 +47,6 @@ async def delete_data(request: DeleteRequest):
 
         return DeleteResponse(
             message=f"Deleted file '{deleted_file}' and flushed {deleted_nodes} Neo4j nodes for language '{language}'.",
-            deleted_nodes=deleted_nodes,
-            recompiled_files=recompiled_files
         )
 
     except Exception as e:

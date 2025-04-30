@@ -94,11 +94,11 @@ def parse_single_question(question_content, question_number):
                 continue
                 
             answer_patterns = [
-                r'(?:[Jj]awaban|[Aa]nswer)[\s\:\=]+([A-D])',  # Standard format
-                r'[Cc]orrect\s+[Aa]nswer[\s\:\=]+([A-D])',    # "Correct Answer: X" format
-                r'[Cc]orrect[\s\:\=]+([A-D])',                # "Correct: X" format
-                r'[Tt]he\s+[Aa]nswer\s+is[\s\:\=]+([A-D])',   # "The answer is X" format
-                r'[Kk]ey[\s\:\=]+([A-D])'                     # "Key: X" format
+                r'(?:[Jj]awaban|[Aa]nswer)[\s\:\=]+([A-D])',  
+                r'[Cc]orrect\s+[Aa]nswer[\s\:\=]+([A-D])',    
+                r'[Cc]orrect[\s\:\=]+([A-D])',                
+                r'[Tt]he\s+[Aa]nswer\s+is[\s\:\=]+([A-D])',   
+                r'[Kk]ey[\s\:\=]+([A-D])'                     
             ]
             
             for pattern in answer_patterns:
@@ -136,11 +136,6 @@ def parse_single_question(question_content, question_number):
                 answer = option_letter
                 options[option_letter] = re.sub(r'\s*(?:\(correct\)|\(right\)|\(true\))\s*', '', options[option_letter], flags=re.IGNORECASE)
                 break
-    
-    # Menghapus default answer 'A'
-    # if not answer and all(options.values()):
-    #     print(f"Warning: No answer found for question {question_number}. Using default answer A.")
-    #     answer = 'A'
     
     has_all_options = all(options.values())
     print(f"Question {question_number} parsing:")

@@ -8,7 +8,7 @@ class QueryRequest(BaseModel):
     language: str = Field(..., description="Language to use for the query: 'english' or 'indonesian'.")
 
 class EssayRequest(BaseModel):
-    question: str = Field(..., description="The prompt for essay generation.")
+    query: str = Field(..., description="The prompt for essay generation.")
     language: str = Field(default="english", description="Language for essay generation: 'english' or 'indonesian'.")
 
 class QueryResponse(BaseModel):
@@ -26,8 +26,10 @@ class UploadResponse(BaseModel):
 class DeleteRequest(BaseModel):
     filename: str
     language: str
-    
+
+class RecompiledFile(BaseModel):
+    file: str
+    documents_added: int
+
 class DeleteResponse(BaseModel):
     message: str
-    deleted_nodes: int
-    recompiled_files: List[str]
