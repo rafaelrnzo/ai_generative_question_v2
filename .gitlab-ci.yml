@@ -15,3 +15,5 @@ deploy_app:
     - echo "Stopping and removing existing container if it exists..."
     - try { docker rm -f fastapi_app } catch {}
     - docker run -d -p 8002:8002 --name fastapi_app app
+  only:
+    - neo4j_version
