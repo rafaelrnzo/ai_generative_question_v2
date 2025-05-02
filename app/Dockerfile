@@ -14,6 +14,7 @@ RUN pip install --upgrade pip setuptools wheel
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 RUN pip install openai
+RUN pip install openai
 
 COPY . .
 
