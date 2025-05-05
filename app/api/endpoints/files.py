@@ -11,7 +11,8 @@ router = APIRouter(prefix="/api/files", tags=["files"])
 async def list_files(
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1),
-    search: Optional[str] = Query(None)
+    search: Optional[str] = Query(None),
+    language: Optional[str] = Query(None, description="Filter by language (e.g., english or indonesian)")
 ):
     response = []
 
@@ -22,7 +23,10 @@ async def list_files(
                     continue
 
                 relative_path = os.path.relpath(root, UPLOAD_DIR)
-                language = relative_path.split(os.sep)[0] if relative_path != "." else "unknown"
+                lang = relative_path.split(os.sep)[0] if relative_path != "." else "unknown"
+
+                if language and lang.lower() != language.lower():
+                    continue
 
                 file_path = os.path.join(root, file)
                 created_timestamp = os.path.getctime(file_path)
@@ -31,7 +35,7 @@ async def list_files(
                 response.append({
                     "title": os.path.splitext(file)[0],
                     "url_file": f"/{relative_path}/{file}".replace("\\", "/"),
-                    "language": language,
+                    "language": lang,
                     "created_at": created_at
                 })
 
