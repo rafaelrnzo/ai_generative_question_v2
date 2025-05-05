@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Query
 import os
+import math
+import datetime
 from core.config import UPLOAD_DIR
 from typing import Optional
 
@@ -22,13 +24,19 @@ async def list_files(
                 relative_path = os.path.relpath(root, UPLOAD_DIR)
                 language = relative_path.split(os.sep)[0] if relative_path != "." else "unknown"
 
+                file_path = os.path.join(root, file)
+                created_timestamp = os.path.getctime(file_path)
+                created_at = datetime.datetime.fromtimestamp(created_timestamp).isoformat()
+
                 response.append({
                     "title": os.path.splitext(file)[0],
                     "url_file": f"/{relative_path}/{file}".replace("\\", "/"),
-                    "language": language
+                    "language": language,
+                    "created_at": created_at
                 })
 
     total_files = len(response)
+    total_pages = math.ceil(total_files / limit) if total_files > 0 else 1
 
     start = (page - 1) * limit
     end = start + limit
@@ -40,6 +48,7 @@ async def list_files(
             "page": page,
             "limit": limit,
             "total_files": total_files,
+            "total_pages": total_pages,
             "files": paginated_files
         }
     }
