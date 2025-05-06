@@ -18,14 +18,14 @@ async def delete_data(request: DeleteRequest):
         filename = request.filename.strip().lower()
         language = request.language.lower()
         graph = get_graph_upload(language)
-
+        
         logging.info(f"[Delete] filename='{filename}', language='{language}'")
-
+        
         folder_path = Path(ENGLISH_DIR if language == "english" else INDONESIAN_DIR)
-
+        
         if not folder_path.exists():
             raise HTTPException(status_code=404, detail=f"Language folder '{language}' not found.")
-
+        
         deleted_file = None
         for pdf_file in folder_path.glob("*.pdf"):
             if filename in pdf_file.stem.lower():
@@ -33,22 +33,38 @@ async def delete_data(request: DeleteRequest):
                 deleted_file = pdf_file.name
                 logging.info(f"[Delete] Removed file: {pdf_file}")
                 break
-
+        
         if not deleted_file:
             raise HTTPException(status_code=404, detail=f"File matching '{filename}' not found in '{language}' folder.")
-
-        deleted_nodes = flush_db(graph)
-
+        
+        try:
+            deleted_nodes = flush_db(graph)
+            logging.info(f"[Delete] Flushed {deleted_nodes} nodes from Neo4j for language '{language}'")
+        except Exception as e:
+            logging.error(f"[Delete] Error flushing database: {str(e)}")
+            deleted_nodes = 0
+        
         recompiled_files = []
-        for pdf_file in folder_path.glob("*.pdf"):
-            documents = load_pdf(pdf_file)
-            result = store_documents(documents, graph)
-            recompiled_files.extend(result)
-
+        remaining_files = list(folder_path.glob("*.pdf"))
+        
+        if remaining_files:
+            logging.info(f"[Delete] Re-uploading {len(remaining_files)} remaining files")
+            for pdf_file in remaining_files:
+                try:
+                    documents = load_pdf(pdf_file)
+                    result = store_documents(documents, graph)
+                    recompiled_files.append(pdf_file.name)
+                    logging.info(f"[Delete] Re-uploaded file: {pdf_file}")
+                except Exception as e:
+                    logging.error(f"[Delete] Error re-uploading file {pdf_file}: {str(e)}")
+        else:
+            logging.info(f"[Delete] No files remaining to re-upload in {language} folder")
+        
         return DeleteResponse(
-            message=f"Deleted file '{deleted_file}' and flushed {deleted_nodes} Neo4j nodes for language '{language}'.",
+            message=f"Deleted file '{deleted_file}' and flushed {deleted_nodes} Neo4j nodes for language '{language}'. "
+                    f"Re-uploaded {len(recompiled_files)} remaining files."
         )
-
+    
     except Exception as e:
         logging.exception("[Delete Error]")
         raise HTTPException(status_code=500, detail=f"Error during deletion: {str(e)}")
