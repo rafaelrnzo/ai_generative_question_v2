@@ -3,15 +3,18 @@ from langchain_ollama import OllamaEmbeddings
 from langchain_neo4j import Neo4jGraph
 from langchain_community.vectorstores import Neo4jVector
 
+class SafeNeo4jGraph(Neo4jGraph):
+    def refresh_schema(self):
+        self.structured_schema = {}
+
 def get_graph_upload(language: str):
     database = "englishdb" if language == "english" else "indonesiandb"
-    return Neo4jGraph(
+    return SafeNeo4jGraph(
         url=NEO4J_URL,
         username=NEO4J_USER,
         password=NEO4J_PASSWORD,
         database=database
     )
-
 def get_graph():
     return Neo4jGraph(
         url=NEO4J_URL,

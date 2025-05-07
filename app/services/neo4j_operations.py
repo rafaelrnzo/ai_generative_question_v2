@@ -30,8 +30,20 @@ def flush_db(graph):
     query = """
     MATCH (n) DETACH DELETE n
     """
-    result = graph.query(query)
-    return "success"
+    try:
+        with graph.session() as session:
+            result = session.run(query)
+            return f"Successfully deleted {result.consume().counters.nodes_deleted} nodes"
+    except Exception as e:
+        try:
+            result = graph.query(query)  # Your original method
+            return "Database successfully flushed"
+        except Exception as inner_e:
+            try:
+                graph.run(query)  # Another common method name
+                return "Database successfully flushed"
+            except:
+                raise e
 
 def topic_exists(topic: str, graph) -> bool:
     query = """
