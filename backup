@@ -1,0 +1,79 @@
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
+from models.schemas import UploadResponse # Assuming this can be adapted
+from services.pdf_processing import load_pdf, store_documents_for_file
+from core.config import ENGLISH_DIR, INDONESIAN_DIR
+from core.dependencies import get_graph_upload
+import shutil
+import os
+import logging
+import uuid # For unique filenames if needed, or to track tasks
+
+router = APIRouter(prefix="/api/upload-file", tags=["upload"])
+
+def process_pdf_background(file_path: str, language: str, original_filename: str):
+    try:
+        logging.info(f"Background task started for {original_filename} ({language}) at path: {file_path}")
+        documents = load_pdf(file_path)
+        graph = get_graph_upload(language) # Get graph instance for the specified language
+        doc_count = store_documents_for_file(documents, graph, original_filename) # Pass filename for context
+
+        logging.info(
+            f"Successfully processed {original_filename} ({language}). "
+            f"{doc_count} documents added to graph."
+        )
+
+    except Exception as e:
+        logging.error(
+            f"Error in background processing for {original_filename} ({language}) at {file_path}: {str(e)}"
+        )
+
+@router.post("/", response_model=UploadResponse) # You might want a different response model
+async def upload_pdf(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    language: str = Form(...)
+):
+    try:
+        if language.lower() == "english":
+            upload_dir = ENGLISH_DIR
+        elif language.lower() == "indonesian":
+            upload_dir = INDONESIAN_DIR
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported language. Use 'english' or 'indonesian'.")
+
+        os.makedirs(upload_dir, exist_ok=True)
+
+        file_path = os.path.join(upload_dir, file.filename)
+
+        try:
+            import aiofiles
+            async with aiofiles.open(file_path, "wb") as buffer:
+                content = await file.read()
+                await buffer.write(content)
+        except ImportError:
+            logging.warning("aiofiles not installed, using synchronous file saving.")
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+        finally:
+            await file.close()
+
+        background_tasks.add_task(
+            process_pdf_background, file_path, language, file.filename
+        )
+
+        return UploadResponse(
+            filename=file.filename,
+            language=language,
+            document_count=None,
+            message="Upload accepted. Processing in background."
+        )
+    except HTTPException as he:
+        raise he 
+    except Exception as e:
+        logging.error(f"Error in upload_pdf endpoint: {str(e)}")
+        if 'file_path' in locals() and os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception as e_clean:
+                logging.error(f"Failed to cleanup file {file_path} after error: {e_clean}")
+        raise HTTPException(status_code=500, detail=f"Error initiating PDF processing: {str(e)}")

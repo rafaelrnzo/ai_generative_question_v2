@@ -18,11 +18,11 @@ class UploadRequest(BaseModel):
     language: Language = Field(..., description="Language of the uploaded document: 'english' or 'indonesian'.")
 
 class UploadResponse(BaseModel):
-    filename: str = Field(..., description="Uploaded file name.")
-    language: Language = Field(..., description="Language of the uploaded document.")
-    document_count: int = Field(..., description="Number of documents stored from the upload.")
-    message: str = Field(..., description="Status message of the upload process.")
-
+    filename: str
+    language: str
+    document_count: Optional[int] = None
+    message: str
+    
 class DeleteRequest(BaseModel):
     filename: str
     language: str
