@@ -37,10 +37,10 @@ class MCQService:
         self.model = ChatOllama(
             base_url=OLLAMA_HOST,
             model=OLLAMA_MODEL,
-            temperature=0.7,
+            # temperature=0.7,
             options={
                 "num_ctx": 1024,
-                "temperature": 0.7,
+                "temperature": 0.4,
                 "top_p": 0.9,
                 "top_k": 40,
                 "cache": False,
@@ -203,7 +203,7 @@ class MCQService:
                                 "C": mcq_result["properties"]["C"],
                                 "D": mcq_result["properties"]["D"],
                                 "Answer": mcq_result["properties"]["answer"],
-                                "Explanation": mcq_result["properties"]["explanation"],
+                                # "Explanation": mcq_result["properties"]["explanation"],
                             }
                         ]
                     },

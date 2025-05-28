@@ -1,3 +1,4 @@
+
 from core.config import NEO4J_URL, NEO4J_USER, NEO4J_PASSWORD, OLLAMA_HOST
 from langchain_ollama import OllamaEmbeddings
 from langchain_neo4j import Neo4jGraph

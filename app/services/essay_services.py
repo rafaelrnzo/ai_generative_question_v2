@@ -9,7 +9,7 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain.schema.runnable import RunnableMap
 from typing import Optional
 from core.dependencies import get_vector_retriever_en, get_vector_retriever
-from fastapi import HTTPException  # <- Added
+from fastapi import HTTPException  
 
 class Essay(BaseModel):
     question: str = Field(description="A realistic and informative essay question.")
@@ -30,10 +30,10 @@ class EssayService:
         self.model = ChatOllama(
             base_url=OLLAMA_HOST,
             model=OLLAMA_MODEL,
-            temperature=0.7,
+            # temperature=0.7,
             options={
                 "num_ctx": 1024,
-                "temperature": 0.7,
+                "temperature": 0.5,
                 "top_p": 0.9,
                 "top_k": 40,
                 "cache": False,
