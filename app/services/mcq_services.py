@@ -237,7 +237,7 @@ class MCQService:
                             "C": mcq_result["properties"]["C"],
                             "D": mcq_result["properties"]["D"],
                             "Answer": mcq_result["properties"]["answer"],
-                            "Explanation": mcq_result["properties"]["explanation"],
+                            # "Explanation": mcq_result["properties"]["explanation"],
                         }
                     ]
                 },
