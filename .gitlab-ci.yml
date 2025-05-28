@@ -1,19 +1,60 @@
+variables:
+  REPOSITORY: "10.70.0.28:4321/ai-generative"
+  TAG_COMMIT: "$REPOSITORY/$CI_PROJECT_NAME:$CI_COMMIT_SHORT_SHA"
+  TAG_LATEST: "$REPOSITORY/$CI_PROJECT_NAME:latest"
+  DOCKERUSER: "admin"
+  DOCKERPASSWORD: "falah0918"
+  GIT_DEPTH: "0"
+  FLUX_HTTPS_URL: "https://wussh:$GIT_TOKEN@github.com/wussh/flux-new.git"
+  SONAR_TOKEN: "sqp_c603f9ae5f2214410bf0da36c4f0e08501bda0b9"
+  SONAR_HOST_URL: "http://10.70.0.28:9000"
+  SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
+  GIT_DEPTH: "0"
+
 stages:
+  - build
   - deploy
+
+build:
+  stage: build
+  image:
+    name: 10.70.0.28:4321/library/kaniko-executor:v1.23.2-debug
+    entrypoint: [""]
+  variables:
+    DOCKER_CONFIG: "/kaniko/.docker/"
+  cache:
+    key: "${CI_COMMIT_REF_SLUG}-kaniko"
+    paths:
+      - /cache
+    policy: pull-push
+  before_script:
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"$REPOSITORY\":{\"username\":\"$DOCKERUSER\",\"password\":\"$DOCKERPASSWORD\",\"auth\":\"$(echo -n "$DOCKERUSER:$DOCKERPASSWORD" | base64)\"}}}" > /kaniko/.docker/config.json
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}/app"
+      --dockerfile "${CI_PROJECT_DIR}/app/Dockerfile"
+      --destination "${TAG_COMMIT}"
+      --destination "${TAG_LATEST}"
+      --insecure-registry
+      --skip-tls-verify
+      --skip-tls-verify-pull
+      --skip-tls-verify-registry
+      --cache=true
+      --snapshot-mode=redo
+      --use-new-run
+      --cache-dir=/cache
+  only:
+    - neo4j_version
 
 deploy_app:
   stage: deploy
-  script:
-    - echo "Marking safe directory for Git..."
-    - git config --global --add safe.directory 'C:/Users/FIT/ai_proj/ai_generative_question_v2'
-    - echo "Pulling latest changes..."
-    - cd 'C:\Users\FIT\ai_proj\ai_generative_question_v2'
-    - git pull origin neo4j_version
-    - echo "Running FastAPI app with Uvicorn..."
-    - cd app
-    - docker build -t app .
-    - echo "Stopping and removing existing container if it exists..."
-    - try { docker rm -f fastapi_app } catch {}
-    - docker run -d -p 8002:8002 --name fastapi_app app
+  image: alpine:3.17
+  before_script:
+    - apk add --no-cache git yq
+    - git config --global user.email "ci-bot@example.com"
+    - git config --global user.name "CI Bot"
+  script: |
+    git clone "$FLUX_HTTPS_URL" flux-repo && cd flux-repo/releases/dev/project/ai-generative && git pull && sed -E -i "s#(10\.70\.0\.28:4321/ai-generative/ai-generative-question:)[0-9a-f]+#\1${CI_COMMIT_SHORT_SHA}#g" deployment.yaml && if git diff --quiet; then echo "No image change, skipping commit"; exit 0; fi && git add deployment.yaml && git commit -m "ci: update fastapi image → $TAG_COMMIT" && git push
   only:
     - neo4j_version
