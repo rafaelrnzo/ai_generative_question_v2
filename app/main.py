@@ -20,7 +20,7 @@ app.include_router(files.router)
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to Neo4j PDF RAG API"}
+    return {"message": "AI Generative Question V2"}
 
 if __name__ == "__main__":
     import uvicorn
