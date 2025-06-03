@@ -1,6 +1,8 @@
 services:
   app:
     image: 10.70.0.28:4321/ai-generative/ai-generative-question:latest
+    pull_policy: always
+    restart: always
     container_name: ai-generative-question
     ports:
       - "8002:8002"
