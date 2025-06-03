@@ -1,0 +1,6 @@
+services:
+  app:
+    image: 10.70.0.28:4321/ai-generative/ai-generative-question:latest
+    container_name: ai-generative-question
+    ports:
+      - "8002:8002"
