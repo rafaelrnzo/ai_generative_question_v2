@@ -7,7 +7,7 @@ import json
 from typing import Literal
 from langchain_core.runnables import RunnablePassthrough
 from langchain.schema.runnable import RunnableMap
-from fastapi import HTTPException  # <- Added
+from fastapi import HTTPException
 
 from core.config import OLLAMA_MODEL, OLLAMA_HOST
 from core.dependencies import get_vector_retriever_en, get_vector_retriever
