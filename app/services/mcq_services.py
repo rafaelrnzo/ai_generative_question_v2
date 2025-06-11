@@ -3,11 +3,9 @@ from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from pydantic import BaseModel, Field
 from uuid import uuid4
-import json
 from typing import Literal
 from langchain_core.runnables import RunnablePassthrough
 from langchain.schema.runnable import RunnableMap
-from fastapi import HTTPException
 
 from core.config import OLLAMA_MODEL, OLLAMA_HOST
 from core.dependencies import get_vector_retriever_en, get_vector_retriever
@@ -37,7 +35,6 @@ class MCQService:
         self.model = ChatOllama(
             base_url=OLLAMA_HOST,
             model=OLLAMA_MODEL,
-            # temperature=0.7,
             options={
                 "num_ctx": 1024,
                 "temperature": 0.4,
@@ -109,23 +106,23 @@ class MCQService:
         )
 
         prompt_template_id = (
-        "Kamu adalah sebuah API JSON yang menghasilkan soal pilihan ganda yang terstruktur dan berkualitas tinggi lengkap dengan jawaban dan penjelasan.\n"
-        "HANYA kembalikan objek JSON yang valid dengan nilai yang SESUNGGUHNYA. JANGAN sertakan teks placeholder, contoh, atau deskripsi umum.\n"
-        "Gunakan konteks berikut untuk menghasilkan pertanyaan yang bermakna dan informatif.\n\n"
-        "Konteks:\n{context}\n\n"
-        "Permintaan pengguna:\n{query}\n\n"
-        "Balas HANYA dalam format JSON berikut ini:\n"
-        "{{\n"
-        '    "properties": {{\n'
-        '        "question": "Pertanyaan di sini",\n'
-        '        "A": "Pilihan A",\n'
-        '        "B": "Pilihan B",\n'
-        '        "C": "Pilihan C",\n'
-        '        "D": "Pilihan D",\n'
-        '        "answer": "Huruf pilihan benar (A/B/C/D)",\n'
-        '        "explanation": "Penjelasan dari jawaban yang benar."\n'
-        "    }}\n"
-        "}}"
+            "Kamu adalah sebuah API JSON yang menghasilkan soal pilihan ganda yang terstruktur dan berkualitas tinggi lengkap dengan jawaban dan penjelasan.\n"
+            "HANYA kembalikan objek JSON yang valid dengan nilai yang SESUNGGUHNYA. JANGAN sertakan teks placeholder, contoh, atau deskripsi umum.\n"
+            "Gunakan konteks berikut untuk menghasilkan pertanyaan yang bermakna dan informatif.\n\n"
+            "Konteks:\n{context}\n\n"
+            "Permintaan pengguna:\n{query}\n\n"
+            "Balas HANYA dalam format JSON berikut ini:\n"
+            "{{\n"
+            '    "properties": {{\n'
+            '        "question": "Pertanyaan di sini",\n'
+            '        "A": "Pilihan A",\n'
+            '        "B": "Pilihan B",\n'
+            '        "C": "Pilihan C",\n'
+            '        "D": "Pilihan D",\n'
+            '        "answer": "Huruf pilihan benar (A/B/C/D)",\n'
+            '        "explanation": "Penjelasan dari jawaban yang benar."\n'
+            "    }}\n"
+            "}}"
         )
 
         self.prompt = PromptTemplate(
@@ -146,40 +143,49 @@ class MCQService:
             "query": RunnablePassthrough()
         }) | self.prompt | self.model | self.parser
 
-    def _get_out_of_topic_response(self, query: str, reason: str = ""):
+    def _get_out_of_topic_result(self, query: str, reason: str = ""):
         if self.language == "english":
-            message = f"I'm sorry, but your query '{query}' appears to be out of topic or not related to the available knowledge base. Please ask questions related to the topics I'm trained on."
-            if reason:
-                message += f" Reason: {reason}"
+            explanation = reason or "Your query is not relevant to the available topics."
+            question_text = "Your query appears to be out of topic or not related to our knowledge base."
         else:
-            message = f"Maaf, pertanyaan '{query}' tampaknya di luar topik atau tidak terkait dengan basis pengetahuan yang tersedia. Silakan ajukan pertanyaan yang berkaitan dengan topik yang saya kuasai."
-            if reason:
-                message += f" Alasan: {reason}"
+            explanation = reason or "Pertanyaan Anda tidak relevan dengan topik yang tersedia."
+            question_text = "Pertanyaan Anda tampaknya di luar topik atau tidak terkait dengan basis pengetahuan kami."
 
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "status": "error",
-                "query": query,
-                "message": message,
-                "response": None,
-                "metadata": {
-                    "model": self.model_name,
-                }
-            }    
-        )
-        
+        return {
+            "status": "success",
+            "query": query,
+            "response": {
+                "questions": [
+                    {
+                        "questions": question_text,
+                        "A": "-",
+                        "B": "-",
+                        "C": "-",
+                        "D": "-",
+                        "Answer": "-",
+                        # "Explanation": explanation,
+                    }
+                ]
+            },
+            "metadata": {
+                "model": self.model_name,
+                "rag": False,
+                "type": "MCQ",
+                "relevance_score": 0.0,
+                "reason": explanation,
+                "skip_topic_check": False
+            }
+        }
 
     def _is_question_generation_request(self, query: str) -> bool:
-        question_keywords = [
-            "make", "create", "generate", "give me", "show me", "question", "questions", 
+        keywords = [
+            "make", "create", "generate", "give me", "show me", "question", "questions",
             "mcq", "multiple choice", "quiz", "test", "one question", "some questions",
-            "buat", "buatkan", "bikin", "bikinkan", "kasih", "berikan", "soal", 
+            "buat", "buatkan", "bikin", "bikinkan", "kasih", "berikan", "soal",
             "pertanyaan", "pilihan ganda", "kuis", "ujian", "satu soal"
         ]
-        
         query_lower = query.lower()
-        return any(keyword in query_lower for keyword in question_keywords)
+        return any(keyword in query_lower for keyword in keywords)
 
     def run(self, query: str, relevance_threshold: float = 0.3):
         random_id = str(uuid4())[:8]
@@ -189,8 +195,6 @@ class MCQService:
             if self._is_question_generation_request(query):
                 print("Detected as question generation request - skipping topic check")
                 mcq_result = self.mcq_chain.invoke({"query": full_query})
-                print(f"MCQ result: {mcq_result}")
-
                 return {
                     "status": "success",
                     "query": query,
@@ -203,7 +207,6 @@ class MCQService:
                                 "C": mcq_result["properties"]["C"],
                                 "D": mcq_result["properties"]["D"],
                                 "Answer": mcq_result["properties"]["answer"],
-                                # "Explanation": mcq_result["properties"]["explanation"],
                             }
                         ]
                     },
@@ -211,7 +214,7 @@ class MCQService:
                         "model": self.model_name,
                         "rag": True,
                         "type": "MCQ",
-                        "relevance_score": 1.0, 
+                        "relevance_score": 1.0,
                         "skip_topic_check": True
                     }
                 }
@@ -220,11 +223,9 @@ class MCQService:
             print(f"Topic relevance check: {topic_result}")
 
             if not topic_result["is_relevant"] or topic_result["confidence"] < relevance_threshold:
-                return self._get_out_of_topic_response(query, topic_result["reason"])
+                return self._get_out_of_topic_result(query, topic_result["reason"])
 
             mcq_result = self.mcq_chain.invoke({"query": full_query})
-            print(f"MCQ result: {mcq_result}")
-
             return {
                 "status": "success",
                 "query": query,
@@ -237,7 +238,6 @@ class MCQService:
                             "C": mcq_result["properties"]["C"],
                             "D": mcq_result["properties"]["D"],
                             "Answer": mcq_result["properties"]["answer"],
-                            # "Explanation": mcq_result["properties"]["explanation"],
                         }
                     ]
                 },
@@ -251,8 +251,4 @@ class MCQService:
 
         except Exception as e:
             print(f"Error in MCQ generation: {str(e)}")
-            
-            return self._get_out_of_topic_response(
-                query, 
-                "Unable to process the query due to technical issues or topic mismatch."
-            )
+            return self._get_out_of_topic_result(query, "An internal error occurred or topic mismatch.")

@@ -2,14 +2,14 @@ from langchain_ollama import ChatOllama
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from pydantic import BaseModel, Field
-import json
 from uuid import uuid4
 from core.config import OLLAMA_MODEL, OLLAMA_HOST
 from langchain_core.runnables import RunnablePassthrough
 from langchain.schema.runnable import RunnableMap
 from typing import Optional
 from core.dependencies import get_vector_retriever_en, get_vector_retriever
-from fastapi import HTTPException  
+from fastapi import HTTPException
+
 
 class Essay(BaseModel):
     question: str = Field(description="A realistic and informative essay question.")
@@ -30,7 +30,6 @@ class EssayService:
         self.model = ChatOllama(
             base_url=OLLAMA_HOST,
             model=OLLAMA_MODEL,
-            # temperature=0.7,
             options={
                 "num_ctx": 1024,
                 "temperature": 0.5,

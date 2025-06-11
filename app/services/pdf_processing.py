@@ -4,8 +4,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_experimental.graph_transformers import LLMGraphTransformer
 from langchain_ollama import ChatOllama
-# UPLOAD_DIR is not used here directly as file_path is passed
-from core.config import OLLAMA_HOST, OLLAMA_MODEL # Removed UPLOAD_DIR
+from core.config import OLLAMA_HOST, OLLAMA_MODEL 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__) 
