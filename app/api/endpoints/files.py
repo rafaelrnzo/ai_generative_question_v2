@@ -4,6 +4,7 @@ import os
 import math
 import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo 
 from core.config import UPLOAD_DIR
 
 router = APIRouter(prefix="/api/files", tags=["files"])
@@ -32,8 +33,7 @@ async def list_files(
 
             filename = file_path.stem
             is_processing = filename.endswith(".tmp") 
-            remove_dot = filename[:-4] if is_processing else filename  
-            clean_title = filename[:-4] if is_processing else filename  
+            clean_title = filename[:-4] if is_processing else filename
 
             if search and search.lower() not in clean_title.lower():
                 continue
@@ -43,7 +43,9 @@ async def list_files(
                 continue
 
             created_timestamp = file_path.stat().st_ctime
-            created_at = datetime.datetime.fromtimestamp(created_timestamp).isoformat()
+            created_at = datetime.datetime.fromtimestamp(
+                created_timestamp, tz=ZoneInfo("Asia/Jakarta")
+            ).isoformat()
 
             response.append({
                 "title": clean_title,
