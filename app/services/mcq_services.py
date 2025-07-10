@@ -18,10 +18,10 @@ class MCQ(BaseModel):
     B: str = Field(description="Option B for the multiple-choice question.")
     C: str = Field(description="Option C for the multiple-choice question.")
     D: str = Field(description="Option D for the multiple-choice question.")
-    answer: Literal['A', 'B', 'C', 'D'] = Field(
-        description="The correct answer letter (A, B, C, or D).")
+    Answer: Literal['A', 'B', 'C', 'D'] = Field(
+        description="The correct Answer letter (A, B, C, or D).")
     explanation: str = Field(
-        description="Explanation of why the correct answer is right.")
+        description="Explanation of why the correct Answer is right.")
 
 
 class TopicRelevance(BaseModel):
@@ -94,7 +94,7 @@ class MCQService:
         )
 
         prompt_template_en = (
-            "You are a JSON API that returns a concise, clear, and high-quality multiple-choice question (MCQ) with answer and explanation.\n"
+            "You are a JSON API that returns a concise, clear, and high-quality multiple-choice question (MCQ) with Answer and explanation.\n"
             "ONLY return a valid JSON object with REAL values. DO NOT include any placeholder text, example values, or descriptions.\n"
             "Keep the question and each option as short and direct as possible, avoiding unnecessary details or repetition.\n"
             "Use the following context to generate a meaningful and informative result.\n\n"
@@ -108,8 +108,8 @@ class MCQService:
             '        "B": "Option B",\n'
             '        "C": "Option C",\n'
             '        "D": "Option D",\n'
-            '        "answer": "Correct option letter (A/B/C/D)",\n'
-            '        "explanation": "Brief explanation of the correct answer."\n'
+            '        "Answer": "Correct option letter (A/B/C/D)",\n'
+            '        "explanation": "Brief explanation of the correct Answer."\n'
             "    }}\n"
             "}}"
         )
@@ -118,7 +118,7 @@ class MCQService:
             "Kamu adalah API JSON yang menghasilkan soal pilihan ganda (MCQ) yang singkat, jelas, dan berkualitas tinggi beserta jawaban dan penjelasan.\n"
             "HANYA kembalikan objek JSON valid dengan nilai SESUNGGUHNYA. JANGAN sertakan teks placeholder, contoh, atau deskripsi umum.\n"
             "Buat pertanyaan dan setiap opsi sependek dan sejelas mungkin, hindari detail atau pengulangan yang tidak perlu.\n"
-            "Pastikan answer atau jawaban adalah huruf dari pilihan yang benar (A/B/C/D)\n"
+            "Pastikan Answer atau jawaban adalah huruf dari pilihan yang benar (A/B/C/D)\n"
             "Gunakan konteks berikut untuk menghasilkan hasil yang bermakna dan informatif.\n\n"
             "Konteks:\n{context}\n\n"
             "Permintaan pengguna:\n{query}\n\n"
@@ -130,7 +130,7 @@ class MCQService:
             '        "B": "Pilihan B",\n'
             '        "C": "Pilihan C",\n'
             '        "D": "Pilihan D",\n'
-            '        "answer": "Huruf pilihan benar (A/B/C/D)",\n'
+            '        "Answer": "Huruf pilihan benar (A/B/C/D)",\n'
             '        "explanation": "Penjelasan singkat dari jawaban yang benar."\n'
             "    }}\n"
             "}}"
@@ -175,7 +175,7 @@ class MCQService:
                         "B": "-",
                         "C": "-",
                         "D": "-",
-                        "answer": "-",
+                        "Answer": "-",
                         # "Explanation": explanation,
                     }
                 ]
@@ -220,7 +220,7 @@ class MCQService:
                                 "B": mcq_result["properties"]["B"],
                                 "C": mcq_result["properties"]["C"],
                                 "D": mcq_result["properties"]["D"],
-                                "answer": mcq_result["properties"]["answer"],
+                                "Answer": mcq_result["properties"]["Answer"],
                             }
                         ]
                     },
@@ -251,7 +251,7 @@ class MCQService:
                             "B": mcq_result["properties"]["B"],
                             "C": mcq_result["properties"]["C"],
                             "D": mcq_result["properties"]["D"],
-                            "answer": mcq_result["properties"]["answer"],
+                            "Answer": mcq_result["properties"]["Answer"],
                         }
                     ]
                 },
