@@ -81,28 +81,32 @@ class EssayService:
         )
 
         prompt_template_en = (
-            "You are a JSON-only API that returns one high-quality essay question and its answer.\n"
-            "Respond with ONLY a valid JSON object, no explanations, no extra text. All values must be REAL and COMPLETE.\n\n"
-            "Use the following context to generate a meaningful question and answer:\n"
+            "You are an API that responds ONLY with a valid JSON object, generating ONE high-quality, clear, and concise essay question and its answer.\n"
+            "The question must be SPECIFIC, STANDALONE, and show depth and relevance to the provided context. Avoid overly general or vague questions.\n"
+            "The answer must be well-structured, informative, and demonstrate deep understanding of the context.\n"
+            "DO NOT add any explanations or extra text outside the requested JSON format.\n\n"
+            "Use the following context to generate the question and answer:\n"
             "Context:\n{context}\n\n"
             "User query: {query}\n\n"
             "Return exactly in the following JSON format:\n"
             '{{\n'
-            '  "question": "A clear, standalone essay question based on the context.",\n'
-            '  "answer": "A well-structured and informative answer to the question."\n'
+            '  "question": "A clear, specific, and relevant essay question based on the context.",\n'
+            '  "answer": "A well-structured, informative answer that demonstrates deep understanding of the question."\n'
             '}}'
         )
 
         prompt_template_id = (
-            "Kamu adalah API JSON-only yang menghasilkan satu pertanyaan esai berkualitas tinggi dan jawabannya.\n"
-            "Hanya berikan OBJEK JSON valid, tanpa penjelasan atau teks tambahan. Semua nilai harus NYATA dan LENGKAP.\n\n"
-            "Gunakan konteks berikut untuk membuat pertanyaan dan jawaban yang bermakna:\n"
+            "Kamu adalah API yang hanya membalas dengan JSON, menghasilkan SATU pertanyaan esai berkualitas tinggi dan jawabannya.\n"
+            "Buat pertanyaan yang SINGKAT, JELAS, dan PADAT, namun tetap memiliki KEDALAMAN dan RELEVANSI dengan konteks.\n"
+            "Pastikan pertanyaan tidak terlalu umum, dan jawabannya harus terstruktur, informatif, serta menunjukkan pemahaman mendalam terhadap konteks.\n"
+            "JANGAN tambahkan penjelasan atau teks lain di luar fomrat JSON yang diminta.\n\n"
+            "Gunakan konteks berikut untuk membuat pertanyaan dan jawaban:\n"
             "Konteks:\n{context}\n\n"
             "Permintaan pengguna: {query}\n\n"
             "Kembalikan dalam format JSON persis seperti ini:\n"
             '{{\n'
-            '  "question": "Pertanyaan esai yang jelas dan berdiri sendiri berdasarkan konteks.",\n'
-            '  "answer": "Jawaban yang terstruktur dan informatif untuk pertanyaan tersebut."\n'
+            '  "question": "Pertanyaan esai yang singkat, jelas, padat, namun mendalam dan relevan dengan konteks.",\n'
+            '  "answer": "Jawaban yang terstruktur, informatif, dan menunjukkan pemahaman mendalam terhadap pertanyaan."\n'
             '}}'
         )
 

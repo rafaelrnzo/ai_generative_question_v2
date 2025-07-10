@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 def process_pdf_background(processing_file_path_str: str, final_file_path_str: str, language: str, original_filename: str):
     processing_file_path = Path(processing_file_path_str)
     final_file_path = Path(final_file_path_str)
-    status_message = "successfully"
 
     try:
         logger.info(f"[BackgroundProcess] Task started for {original_filename} ({language}). Processing file: {processing_file_path}")
@@ -24,29 +23,29 @@ def process_pdf_background(processing_file_path_str: str, final_file_path_str: s
             return
 
         documents = load_pdf(str(processing_file_path))
+        if not documents:
+            raise ValueError("No valid content found in the PDF.")
+
         graph = get_graph_upload(language)
         doc_count = store_documents_for_file(documents, graph, original_filename)
 
-        logger.info(f"[BackgroundProcess] Processed {original_filename} ({language}) - {doc_count} documents added.")
+        if doc_count == 0:
+            raise ValueError("PDF content could not be processed or is empty.")
+
+        final_file_path.parent.mkdir(parents=True, exist_ok=True)
+        if final_file_path.exists():
+            logger.warning(f"[BackgroundProcess] Overwriting existing file: {final_file_path}")
+        processing_file_path.rename(final_file_path)
+        logger.info(f"[BackgroundProcess] Successfully processed and finalized '{original_filename}'.")
 
     except Exception as e:
-        status_message = "with errors"
         logger.error(f"[BackgroundProcess] Error during processing {original_filename} ({language}): {str(e)}", exc_info=True)
-
-    finally:
-        try:
-            if processing_file_path.exists():
-                final_file_path.parent.mkdir(parents=True, exist_ok=True)
-                if final_file_path.exists():
-                    logger.warning(f"[BackgroundProcess] Overwriting existing file: {final_file_path}")
-                processing_file_path.rename(final_file_path)
-                logger.info(f"[BackgroundProcess] Renamed to '{final_file_path.name}' after processing {status_message}.")
-            elif final_file_path.exists():
-                logger.info(f"[BackgroundProcess] File already renamed to '{final_file_path.name}'")
-            else:
-                logger.warning(f"[BackgroundProcess] Missing files to rename for {original_filename}.")
-        except Exception as rename_e:
-            logger.error(f"[BackgroundProcess] Rename failed for {original_filename}: {rename_e}", exc_info=True)
+        if processing_file_path.exists():
+            try:
+                processing_file_path.unlink()
+                logger.info(f"[BackgroundProcess] Removed invalid tmp file: {processing_file_path}")
+            except Exception as unlink_err:
+                logger.error(f"[BackgroundProcess] Failed to remove invalid tmp file: {unlink_err}", exc_info=True)
 
 
 @router.post("/", response_model=UploadResponse)
@@ -74,6 +73,8 @@ async def upload_pdf(
             import aiofiles
             async with aiofiles.open(final_file_path, "wb") as buffer:
                 content = await file.read()
+                if not content:
+                    raise HTTPException(status_code=400, detail="Uploaded file is empty or unreadable.")
                 await buffer.write(content)
             logger.info(f"[UploadAPI] File '{original_filename}' saved to '{final_file_path}'")
         except ImportError:

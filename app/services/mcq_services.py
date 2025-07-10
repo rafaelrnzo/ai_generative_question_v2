@@ -12,36 +12,44 @@ from core.dependencies import get_vector_retriever_en, get_vector_retriever
 
 
 class MCQ(BaseModel):
-    question: str = Field(description="A realistic and informative multiple-choice question.")
+    question: str = Field(
+        description="A realistic and informative multiple-choice question.")
     A: str = Field(description="Option A for the multiple-choice question.")
     B: str = Field(description="Option B for the multiple-choice question.")
     C: str = Field(description="Option C for the multiple-choice question.")
     D: str = Field(description="Option D for the multiple-choice question.")
-    answer: Literal['A', 'B', 'C', 'D'] = Field(description="The correct answer letter (A, B, C, or D).")
-    explanation: str = Field(description="Explanation of why the correct answer is right.")
+    answer: Literal['A', 'B', 'C', 'D'] = Field(
+        description="The correct answer letter (A, B, C, or D).")
+    explanation: str = Field(
+        description="Explanation of why the correct answer is right.")
 
 
 class TopicRelevance(BaseModel):
-    is_relevant: bool = Field(description="Whether the query is relevant to the available context")
+    is_relevant: bool = Field(
+        description="Whether the query is relevant to the available context")
     confidence: float = Field(description="Confidence score between 0 and 1")
-    reason: str = Field(description="Brief explanation of the relevance assessment")
+    reason: str = Field(
+        description="Brief explanation of the relevance assessment")
 
 
 class MCQService:
     def __init__(self, language: str):
-        self.model_name = OLLAMA_MODEL
         self.language = language
+        self.model_name = OLLAMA_MODEL
 
         self.model = ChatOllama(
             base_url=OLLAMA_HOST,
-            model=OLLAMA_MODEL,
+            model=self.model_name,
             options={
-                "num_ctx": 1024,
-                "temperature": 0.4,
-                "top_p": 0.9,
-                "top_k": 40,
+                "temperature": 0.1,
+                "top_p": 0.40,
+                "top_k": 50,
+                "num_ctx": 4096,
                 "cache": False,
-                "seed": -1
+                "seed": 42,
+                "repeat_penalty": 1.1,
+                "presence_penalty": 0.2,
+                "frequency_penalty": 0.2,
             }
         )
 
@@ -86,41 +94,44 @@ class MCQService:
         )
 
         prompt_template_en = (
-            "You are a JSON API that returns a structured and high-quality multiple-choice question with answer and explanation.\n"
+            "You are a JSON API that returns a concise, clear, and high-quality multiple-choice question (MCQ) with answer and explanation.\n"
             "ONLY return a valid JSON object with REAL values. DO NOT include any placeholder text, example values, or descriptions.\n"
+            "Keep the question and each option as short and direct as possible, avoiding unnecessary details or repetition.\n"
             "Use the following context to generate a meaningful and informative result.\n\n"
             "Context:\n{context}\n\n"
             "User query:\n{query}\n\n"
             "Respond ONLY in this exact JSON format:\n"
             "{{\n"
             '    "properties": {{\n'
-            '        "question": "Your question here",\n'
+            '        "question": "Short, clear question",\n'
             '        "A": "Option A",\n'
             '        "B": "Option B",\n'
             '        "C": "Option C",\n'
             '        "D": "Option D",\n'
             '        "answer": "Correct option letter (A/B/C/D)",\n'
-            '        "explanation": "Explanation of the correct answer."\n'
+            '        "explanation": "Brief explanation of the correct answer."\n'
             "    }}\n"
             "}}"
         )
 
         prompt_template_id = (
-            "Kamu adalah sebuah API JSON yang menghasilkan soal pilihan ganda yang terstruktur dan berkualitas tinggi lengkap dengan jawaban dan penjelasan.\n"
-            "HANYA kembalikan objek JSON yang valid dengan nilai yang SESUNGGUHNYA. JANGAN sertakan teks placeholder, contoh, atau deskripsi umum.\n"
-            "Gunakan konteks berikut untuk menghasilkan pertanyaan yang bermakna dan informatif.\n\n"
+            "Kamu adalah API JSON yang menghasilkan soal pilihan ganda (MCQ) yang singkat, jelas, dan berkualitas tinggi beserta jawaban dan penjelasan.\n"
+            "HANYA kembalikan objek JSON valid dengan nilai SESUNGGUHNYA. JANGAN sertakan teks placeholder, contoh, atau deskripsi umum.\n"
+            "Buat pertanyaan dan setiap opsi sependek dan sejelas mungkin, hindari detail atau pengulangan yang tidak perlu.\n"
+            "Pastikan answer atau jawaban adalah huruf dari pilihan yang benar (A/B/C/D)\n"
+            "Gunakan konteks berikut untuk menghasilkan hasil yang bermakna dan informatif.\n\n"
             "Konteks:\n{context}\n\n"
             "Permintaan pengguna:\n{query}\n\n"
             "Balas HANYA dalam format JSON berikut ini:\n"
             "{{\n"
             '    "properties": {{\n'
-            '        "question": "Pertanyaan di sini",\n'
+            '        "question": "Pertanyaan singkat dan jelas",\n'
             '        "A": "Pilihan A",\n'
             '        "B": "Pilihan B",\n'
             '        "C": "Pilihan C",\n'
             '        "D": "Pilihan D",\n'
             '        "answer": "Huruf pilihan benar (A/B/C/D)",\n'
-            '        "explanation": "Penjelasan dari jawaban yang benar."\n'
+            '        "explanation": "Penjelasan singkat dari jawaban yang benar."\n'
             "    }}\n"
             "}}"
         )
@@ -128,10 +139,12 @@ class MCQService:
         self.prompt = PromptTemplate(
             template=prompt_template_en if language == "english" else prompt_template_id,
             input_variables=["query", "context"],
-            partial_variables={"format_instructions": self.parser.get_format_instructions()},
+            partial_variables={
+                "format_instructions": self.parser.get_format_instructions()},
         )
 
-        self.retriever = get_vector_retriever_en() if language == "english" else get_vector_retriever()
+        self.retriever = get_vector_retriever_en(
+        ) if language == "english" else get_vector_retriever()
 
         self.topic_chain = RunnableMap({
             "context": lambda x: self.retriever.get_relevant_documents(x["query"]),
@@ -157,12 +170,12 @@ class MCQService:
             "response": {
                 "questions": [
                     {
-                        "questions": question_text,
+                        "question": question_text,
                         "A": "-",
                         "B": "-",
                         "C": "-",
                         "D": "-",
-                        "Answer": "-",
+                        "answer": "-",
                         # "Explanation": explanation,
                     }
                 ]
@@ -195,6 +208,7 @@ class MCQService:
             if self._is_question_generation_request(query):
                 print("Detected as question generation request - skipping topic check")
                 mcq_result = self.mcq_chain.invoke({"query": full_query})
+                print(f"MCQ generation result: {mcq_result}")
                 return {
                     "status": "success",
                     "query": query,
@@ -206,7 +220,7 @@ class MCQService:
                                 "B": mcq_result["properties"]["B"],
                                 "C": mcq_result["properties"]["C"],
                                 "D": mcq_result["properties"]["D"],
-                                "Answer": mcq_result["properties"]["answer"],
+                                "answer": mcq_result["properties"]["answer"],
                             }
                         ]
                     },
@@ -232,12 +246,12 @@ class MCQService:
                 "response": {
                     "questions": [
                         {
-                            "questions": mcq_result["properties"]["question"],
+                            "question": mcq_result["properties"]["question"],
                             "A": mcq_result["properties"]["A"],
                             "B": mcq_result["properties"]["B"],
                             "C": mcq_result["properties"]["C"],
                             "D": mcq_result["properties"]["D"],
-                            "Answer": mcq_result["properties"]["answer"],
+                            "answer": mcq_result["properties"]["answer"],
                         }
                     ]
                 },
