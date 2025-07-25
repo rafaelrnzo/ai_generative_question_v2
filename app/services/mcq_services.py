@@ -6,6 +6,7 @@ from uuid import uuid4
 from typing import Literal
 from langchain_core.runnables import RunnablePassthrough
 from langchain.schema.runnable import RunnableMap
+from better_profanity import profanity
 
 from core.config import OLLAMA_MODEL, OLLAMA_HOST
 from core.dependencies import get_vector_retriever_en, get_vector_retriever
@@ -201,6 +202,24 @@ class MCQService:
         return any(keyword in query_lower for keyword in keywords)
 
     def run(self, query: str, relevance_threshold: float = 0.3):
+        profanity.load_censor_words(custom_words=[
+            "anjing", "bangsat", "kontol", "memek", "pepek", "titit", "peler", "pantek", "lonte",
+            "bajingan", "brengsek", "coli", "sange", "bugil",
+            "ngentot", "ngentod", "ngewe", "kntl", "memk", "bgst", "ajg", "anjg", "ngntl", "ngew", "pntk", "ppek", "pwek", "meki", "njir",
+            "tolol", "goblok", "idiot", "dongo", "kampret", "setan", "keparat", "bencong", "banci", "jancok", "jancuk", "asu", "tai", "bejat",
+            "bokep", "jav", "mesum", "ngangkang", "telanjang", "ngocok", "colmek", "colai",
+            "cungkring", "gendut", "jelek", "pincang", "kere", "bodoh", "hina", "hinaan",
+            "bangke", "kampang", "kaplok", "tampar", "bacot", "mulut lu", "mulut lo", "tai lo", "tai lu",
+            "brengsek lu", "gila", "edun", "setan lu", "brengsek lo",
+        ])
+
+        if profanity.contains_profanity(query):
+            return {
+                "status": "error",
+                "query": query,
+                "message": "Your query contains inappropriate language. Please rephrase your input."
+            }
+
         random_id = str(uuid4())[:8]
         full_query = f"({random_id}) {query}"
 

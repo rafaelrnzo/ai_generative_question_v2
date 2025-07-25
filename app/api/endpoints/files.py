@@ -47,9 +47,13 @@ async def list_files(
                 created_timestamp, tz=ZoneInfo("Asia/Jakarta")
             ).isoformat()
 
+            file_url = f"/uploads/{relative_path.as_posix()}"
+            preview_url = file_url  # atau bisa pakai Google Viewer jika di-host publik
+
             response.append({
                 "title": clean_title,
-                "url_file": f"/{relative_path.as_posix()}",
+                "url_file": file_url,
+                "preview_url": preview_url,
                 "language": lang,
                 "status": file_status,
                 "created_at": created_at

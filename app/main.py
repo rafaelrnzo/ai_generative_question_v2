@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from core.config import UPLOAD_DIR
 from api.endpoints import query, upload, delete, files, health
 
 app = FastAPI(title="AI Generative Question V2")
@@ -11,12 +13,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# 
+
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
 app.include_router(query.router)
 app.include_router(upload.router)
 app.include_router(delete.router)
 app.include_router(files.router)
-# app.include_router(health.router)
+app.include_router(health.router)
 
 @app.get("/")
 async def root():
