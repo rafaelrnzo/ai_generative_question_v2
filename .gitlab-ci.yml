@@ -1,9 +1,9 @@
 variables:
-  REPOSITORY: "10.70.0.28:4321/ai-generative"
+  REPOSITORY: "registry.falahtech.com/ai-generative"
   TAG_COMMIT: "$REPOSITORY/$CI_PROJECT_NAME:$CI_COMMIT_SHORT_SHA"
   TAG_LATEST: "$REPOSITORY/$CI_PROJECT_NAME:latest"
   DOCKERUSER: "admin"
-  DOCKERPASSWORD: "falah0918"
+  DOCKERPASSWORD: "Falah0918PRGM"
   GIT_DEPTH: "0"
   FLUX_HTTPS_URL: "https://wussh:$GIT_TOKEN@github.com/wussh/flux-new.git"
   SONAR_TOKEN: "sqp_c603f9ae5f2214410bf0da36c4f0e08501bda0b9"
@@ -24,7 +24,7 @@ stages:
 build:
   stage: build
   image:
-    name: 10.70.0.28:4321/library/kaniko-executor:v1.23.2-debug
+    name: registry.falahtech.com/library/kaniko-executor:v1.24.0-debug
     entrypoint: [""]
   variables:
     DOCKER_CONFIG: "/kaniko/.docker/"
