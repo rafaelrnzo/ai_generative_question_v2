@@ -16,6 +16,8 @@ variables:
   BASE_DIR: "/home/softwaredev/staging/ai-generative-question/app"
   BRANCH: "$CI_COMMIT_REF_NAME"
   DOCKER_COMMAND: "docker compose up -d"
+  # BuildKit Remote Configuration
+  BUILDKIT_HOST: "tcp://buildkit-tfy-buildkitd-service.internal.svc.cluster.local:1234"
 
 stages:
   - build
@@ -23,35 +25,30 @@ stages:
 
 build:
   stage: build
-  image:
-    name: registry.falahtech.com/library/kaniko-executor:v1.24.0-debug
-    entrypoint: [""]
-  variables:
-    DOCKER_CONFIG: "/kaniko/.docker/"
-  cache:
-    key: "${CI_COMMIT_REF_SLUG}-kaniko"
-    paths:
-      - /cache
-    policy: pull-push
+  image: moby/buildkit:latest
   before_script:
-    - mkdir -p /kaniko/.docker
-    - echo "{\"auths\":{\"$REPOSITORY\":{\"username\":\"$DOCKERUSER\",\"password\":\"$DOCKERPASSWORD\",\"auth\":\"$(echo -n "$DOCKERUSER:$DOCKERPASSWORD" | base64)\"}}}" > /kaniko/.docker/config.json
+    # Setup Docker authentication
+    - mkdir -p ~/.docker
+    - |
+      echo "{
+        \"auths\": {
+          \"${REPOSITORY}\": {
+            \"auth\": \"$(printf "%s:%s" "${DOCKERUSER}" "${DOCKERPASSWORD}" | base64 | tr -d '\n')\"
+          }
+        }
+      }" > ~/.docker/config.json
   script:
-    - /kaniko/executor
-      --context "${CI_PROJECT_DIR}/app"
-      --dockerfile "${CI_PROJECT_DIR}/app/Dockerfile"
-      --destination "${TAG_COMMIT}"
-      --destination "${TAG_LATEST}"
-      --insecure-registry
-      --skip-tls-verify
-      --skip-tls-verify-pull
-      --skip-tls-verify-registry
-      --cache=true
-      --snapshot-mode=redo
-      --use-new-run
-      --cache-dir=/cache
+    - |
+      buildctl build \
+        --frontend dockerfile.v0 \
+        --local context=./app/ \
+        --local dockerfile=./app/ \
+        --opt filename=Dockerfile \
+        --output type=image,name="${TAG_COMMIT}",push=true,compression=zstd,compression-level=6,force-compression=true,registry.insecure=true \
+        --output type=image,name="${TAG_LATEST}",push=true,compression=zstd,compression-level=6,force-compression=true,registry.insecure=true
   only:
     - neo4j_version
+  retry: 1
 
 deploy_app:
   stage: deploy
