@@ -1,16 +1,17 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from typing import Optional
 import os
 import math
 import datetime
 from pathlib import Path
-from zoneinfo import ZoneInfo 
+from zoneinfo import ZoneInfo
 from core.config import UPLOAD_DIR
 
 router = APIRouter(prefix="/api/files", tags=["files"])
 
 @router.get("/")
 async def list_files(
+    request: Request,
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1),
     search: Optional[str] = Query(None),
@@ -48,7 +49,7 @@ async def list_files(
             ).isoformat()
 
             file_url = f"/uploads/{relative_path.as_posix()}"
-            preview_url = file_url  # atau bisa pakai Google Viewer jika di-host publik
+            preview_url = f"{request.base_url}{file_url.lstrip('/')}"
 
             response.append({
                 "title": clean_title,
