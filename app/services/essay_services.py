@@ -1,14 +1,13 @@
-from better_profanity import profanity
-from langchain_ollama import ChatOllama
-from langchain_core.output_parsers import JsonOutputParser
+from better_profanity import profanity 
+from langchain_core.output_parsers import JsonOutputParser 
 from langchain_core.prompts import PromptTemplate
 from pydantic import BaseModel, Field
 from uuid import uuid4
-from core.config import OLLAMA_MODEL, OLLAMA_HOST
+from core.config import VLLM_CHAT_MODEL
 from langchain_core.runnables import RunnablePassthrough
 from langchain.schema.runnable import RunnableMap
 from typing import Optional
-from core.dependencies import get_vector_retriever_en, get_vector_retriever
+from core.dependencies import get_vector_retriever_en, get_vector_retriever, get_vllm_chat_llm
 from fastapi import HTTPException
 
 
@@ -25,25 +24,17 @@ class TopicRelevance(BaseModel):
 
 class EssayService:
     def __init__(self, language: str):
-        self.model_name = OLLAMA_MODEL
+        self.model_name = VLLM_CHAT_MODEL
         self.language = language
 
-        self.model = ChatOllama(
-            base_url=OLLAMA_HOST,
-            model=OLLAMA_MODEL,
-            options={
-                "num_ctx": 1024,
-                "temperature": 0.5,
-                "top_p": 0.9,
-                "top_k": 40,
-                "cache": False,
-                "seed": -1
-            }
-        )
+        # pakai vLLM chat service
+        self.model = get_vllm_chat_llm()
 
+        # JSON parsers
         self.parser = JsonOutputParser(pydantic_object=Essay)
         self.topic_parser = JsonOutputParser(pydantic_object=TopicRelevance)
 
+        # Prompt templates (English & Indonesian)
         topic_check_template_en = (
             "You are a topic relevance checker for an essay question generator.\n"
             "Consider the query relevant if:\n"
@@ -116,13 +107,16 @@ class EssayService:
             input_variables=["query", "context"]
         )
 
+        # retriever pakai VLLM embeddings (sudah disediakan di dependencies)
         self.retriever = get_vector_retriever_en() if language == "english" else get_vector_retriever()
 
+        # relevance checking chain
         self.topic_chain = RunnableMap({
             "context": lambda x: self.retriever.get_relevant_documents(x["query"]),
             "query": lambda x: x["query"]
         }) | self.topic_prompt | self.model | self.topic_parser
 
+        # essay generation chain
         self.essay_chain = RunnableMap({
             "context": lambda x: self.retriever.get_relevant_documents(x["query"]),
             "query": lambda x: x["query"]
@@ -254,15 +248,15 @@ class EssayService:
         except Exception as e:
             print("ERROR:", e)
             if "context" in str(e).lower() or "relevant" in str(e).lower():
-                self._get_out_of_topic_response(
-                    query,
-                    "Unable to process the query due to topic mismatch or insufficient context."
-                )
-
-            raise HTTPException(
+                self._get_out_of_topic_response( 
+                    query, 
+                    "Unable to process the query due to topic mismatch or insufficient context." 
+                ) 
+ 
+            raise HTTPException( 
                 status_code=500,
                 detail={
-                    "status": "error",
-                    "message": str(e)
-                }
+                    "status": "error", 
+                    "message": str(e) 
+                } 
             )
