@@ -20,7 +20,6 @@ async def health_check():
     except Exception:
         pass
 
-    # Check Neo4j
     try:
         driver = GraphDatabase.driver(
             NEO4J_URL, auth=(NEO4J_USER, NEO4J_PASSWORD))
