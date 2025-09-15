@@ -1,4 +1,3 @@
-# ---------- Base ----------
 FROM python:3.11-slim-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -7,12 +6,12 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_DEFAULT_TIMEOUT=120 \
     PIP_NO_CACHE_DIR=1 \
-    # Prefer wheel (tanpa compile) sebisa mungkin
+    # prioritaskan wheel (tanpa compile)
     PIP_PREFER_BINARY=1
 
 WORKDIR /app
 
-# ---------- APT hardening + mirror Indonesia ----------
+# Paksa IPv4 + pakai mirror Indonesia + HTTPS
 RUN set -eux; \
     echo 'Acquire::ForceIPv4 "true";' > /etc/apt/apt.conf.d/99force-ipv4; \
     printf '%s\n' \
@@ -21,42 +20,49 @@ RUN set -eux; \
       'deb https://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware' \
       > /etc/apt/sources.list; \
     apt-get -o Acquire::Retries=5 update; \
+    # hanya ca-certificates agar HTTPS pip aman
     apt-get -o Acquire::Retries=5 install -y --no-install-recommends ca-certificates; \
     update-ca-certificates; \
     rm -rf /var/lib/apt/lists/*
 
-# ---------- pip tooling ----------
+# Pip toolchain
 RUN python -m pip install --upgrade pip setuptools wheel
 
-# ---------- install Python deps (2 tahap: wheel-only -> fallback compile) ----------
+# Copy requirements lebih dulu biar cache build efektif
 COPY requirements.txt ./
 
-# 1) Coba install dengan wheel saja (verbose supaya kelihatan paket yang gagal)
-# 2) Kalau gagal, install toolchain + libs umum lalu retry pip install
+# 1) Coba install semua via WHEEL saja.
+# 2) Jika gagal, pasang build deps MINIMAL (tanpa rust), dan HANYA lib yang kemungkinan dibutuhkan
+#    berdasarkan isi requirements.txt, dengan cache APT diarahkan ke /tmp lalu dibersihkan.
 RUN set -eux; \
-    echo "=== PIP (wheel-only) attempt ==="; \
-    if ! pip install -v -r requirements.txt; then \
-      echo "=== Wheel-only gagal. Pasang build deps & retry ==="; \
-      apt-get -o Acquire::Retries=5 update; \
-      apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
-        build-essential \
-        pkg-config \
-        libffi-dev \
-        libssl-dev \
-        libpq-dev \
-        default-libmysqlclient-dev \
-        rustc cargo \
-      ; \
-      pip install -v -r requirements.txt; \
-      # Bersih-bersih layer APT
-      apt-get purge -y --auto-remove; \
-      rm -rf /var/lib/apt/lists/*; \
-    fi
+  echo "=== PIP wheel-only attempt ==="; \
+  if pip install --only-binary=:all: --prefer-binary -r requirements.txt; then \
+    echo ">> Sukses pakai wheel, tidak perlu APT build deps"; \
+  else \
+    echo ">> Wheel-only gagal, install build deps minimal & retry"; \
+    NEED_PG=""; NEED_MYSQL=""; \
+    grep -qiE 'psycopg2|(^|[[:space:]])psycopg([[:space:]=<>\[]|$)' requirements.txt && NEED_PG="yes" || true; \
+    grep -qi 'mysqlclient' requirements.txt && NEED_MYSQL="yes" || true; \
+    # arahkan cache APT ke /tmp agar cepat dibersihkan + jangan simpan paket yang sudah diunduh
+    APT_OPTS='-o Acquire::Retries=5 -o Dir::Cache::Archives=/tmp/apt-cache -o APT::Keep-Downloaded-Packages=false'; \
+    apt-get ${APT_OPTS} update; \
+    # toolchain minimum untuk banyak paket python (tanpa rust)
+    apt-get ${APT_OPTS} install -y --no-install-recommends \
+      build-essential pkg-config libffi-dev libssl-dev \
+      $( [ -n "$NEED_PG" ] && echo libpq-dev || true ) \
+      $( [ -n "$NEED_MYSQL" ] && echo default-libmysqlclient-dev || true ); \
+    rm -rf /tmp/apt-cache || true; \
+    # retry pip install (sekarang boleh compile sedikit)
+    pip install -v -r requirements.txt; \
+    # bersih-bersih supaya layer tetap kecil
+    apt-get purge -y --auto-remove; \
+    rm -rf /var/lib/apt/lists/*; \
+  fi
 
-# (opsional) paket tambahan lain
+# (opsional) paket tambahan
 RUN pip install --no-cache-dir openai
 
-# ---------- app ----------
+# Copy source
 COPY . .
 
 EXPOSE 8002
