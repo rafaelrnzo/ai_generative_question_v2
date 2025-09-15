@@ -16,3 +16,4 @@ pymupdf
 pytesseract
 loguru
 langchain-openai
+better-profanity
