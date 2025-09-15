@@ -1,40 +1,37 @@
-# ✅ Stable + kecil base image
+# Use a specific version for reproducibility
 FROM python:3.11-slim-bookworm
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
+# Set the working directory
 WORKDIR /app
 
-# ✅ Force IPv4 & pakai HTTPS di apt
-RUN set -eux; \
-    echo 'Acquire::ForceIPv4 "true";' > /etc/apt/apt.conf.d/99force-ipv4; \
-    if [ -f /etc/apt/sources.list ]; then \
-        sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list; \
-        sed -i 's|http://security.debian.org|https://security.debian.org|g' /etc/apt/sources.list; \
-    fi; \
-    if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
-        sed -i 's|http://|https://|g' /etc/apt/sources.list.d/debian.sources; \
-    fi; \
-    apt-get -o Acquire::ForceIPv4=true update; \
-    apt-get -o Acquire::ForceIPv4=true install -y --no-install-recommends \
-        ca-certificates \
-        build-essential \
-    ; \
-    rm -rf /var/lib/apt/lists/*
+# Update package lists and install build-essential and other dependencies in one step
+# This reduces layer size and ensures a clean state
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential \
+    # Clean up the apt cache to reduce image size
+    && rm -rf /var/lib/apt/lists/*
 
-# ✅ Upgrade pip tools
-RUN python -m pip install --upgrade pip setuptools wheel
+# Install/upgrade Python packaging tools
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# ✅ Copy & install deps
+# Copy only the requirements file first to leverage Docker cache
 COPY requirements.txt .
-RUN pip install -r requirements.txt
 
-# ✅ Copy source code (langsung ke /app)
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+# Note: If 'openai' is in your requirements.txt, the next line is redundant.
+# If not, you can keep it. For this example, I'll assume it's in the requirements file.
+# RUN pip install --no-cache-dir openai
+
+# Copy the rest of the application code
 COPY . .
 
+# Expose the port the app runs on
 EXPOSE 8002
 
-# ⚠️ Dev mode pakai --reload, di prod ganti --workers
+# Define the command to run the application
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
