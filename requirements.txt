@@ -17,3 +17,4 @@ pytesseract
 loguru
 openai
 langchain-openai
+better-profanity
