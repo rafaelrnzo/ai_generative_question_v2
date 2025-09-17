@@ -4,7 +4,6 @@ from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_community.vectorstores import Neo4jVector
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from core.config import OLLAMA_HOST, OLLAMA_MODEL
 from fastapi.responses import JSONResponse
 from fastapi import FastAPI, HTTPException
 from utils.helpers import is_mcq_request
