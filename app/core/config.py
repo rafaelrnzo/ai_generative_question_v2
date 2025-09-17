@@ -14,8 +14,8 @@ UPLOAD_DIR = "uploads"
 ENGLISH_DIR = os.path.join(UPLOAD_DIR, "english")
 INDONESIAN_DIR = os.path.join(UPLOAD_DIR, "indonesian")
 
-VLLM_EMBEDDINGS_URL = os.getenv("VLLM_EMBEDDINGS_URL", "http://192.168.100.136:8010/v1/embeddings")
-VLLM_EMBED_MODEL = os.getenv("VLLM_EMBED_MODEL", "qwen3-embed")
+VLLM_EMBEDDINGS_URL = os.getenv("VLLM_EMBEDDINGS_URL")
+VLLM_EMBED_MODEL = os.getenv("VLLM_EMBED_MODEL")
 EMBED_BATCH = int(os.getenv("EMBED_BATCH", "64"))
 
 # vLLM Chat/LLM Service  
