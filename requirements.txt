@@ -16,3 +16,4 @@ pymupdf
 pytesseract
 loguru
 openai
+langchain-openai
