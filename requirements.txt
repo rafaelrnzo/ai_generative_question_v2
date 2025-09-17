@@ -10,7 +10,7 @@ langchain-neo4j
 langchain-experimental
 neo4j
 ollama
-python-doten
+python-dotenv
 pdf2image
 pymupdf
 pytesseract
