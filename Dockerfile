@@ -1,14 +1,14 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DEFAULT_TIMEOUT=100
 
-# Avoid IPv6 apt hiccups seen in your first error
+# Avoid IPv6 issues that previously broke apt
 RUN printf 'Acquire::ForceIPv4 "true";\n' > /etc/apt/apt.conf.d/99force-ipv4
 
-# System deps commonly needed for building Python packages + git for VCS requirements
+# System build deps commonly needed by Python packages
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       build-essential \
@@ -19,8 +19,8 @@ RUN apt-get update \
       libssl-dev \
       libpq-dev \
       libxml2-dev \
-      libxslt1-dev \
-      libjpeg-dev \
+      libxslt-dev \
+      libjpeg62-turbo-dev \
       zlib1g-dev \
  && rm -rf /var/lib/apt/lists/*
 
@@ -29,17 +29,16 @@ WORKDIR /app
 # Upgrade pip tooling
 RUN python -m pip install --upgrade pip setuptools wheel
 
-# Copy requirements first for layering
+# Copy requirements first for better caching
 COPY requirements.txt .
 
-# Prefer prebuilt wheels to dodge native builds; add -v for clear error logs
-# If you know you need to build from source, remove --prefer-binary
+# Install deps (prefer wheels; verbose to see exact failing pkg if any)
 RUN python -m pip install --prefer-binary -v -r requirements.txt
 
-# If openai is not in requirements.txt, uncomment:
+# If openai isn't in requirements.txt, uncomment:
 # RUN python -m pip install --prefer-binary -v openai
 
-# Copy the rest of the app
+# Copy the rest
 COPY . .
 
 EXPOSE 8002
