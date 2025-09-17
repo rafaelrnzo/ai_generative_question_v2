@@ -1,25 +1,45 @@
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DEFAULT_TIMEOUT=100
 
-# Force APT to use IPv4 to avoid IPv6 routing hiccups
+# Avoid IPv6 apt hiccups seen in your first error
 RUN printf 'Acquire::ForceIPv4 "true";\n' > /etc/apt/apt.conf.d/99force-ipv4
 
-# (Usually you don't need build-essential for pure-Python/wheel deps)
+# System deps commonly needed for building Python packages + git for VCS requirements
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      build-essential \
+      gcc \
+      git \
+      pkg-config \
+      libffi-dev \
+      libssl-dev \
+      libpq-dev \
+      libxml2-dev \
+      libxslt1-dev \
+      libjpeg-dev \
+      zlib1g-dev \
+ && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-# Upgrade pip tooling first
-RUN pip install --upgrade pip setuptools wheel
+# Upgrade pip tooling
+RUN python -m pip install --upgrade pip setuptools wheel
 
-# Copy and install deps (cache-friendly layer)
+# Copy requirements first for layering
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# If openai isn't already in requirements.txt, keep this; otherwise delete it
-# RUN pip install --no-cache-dir openai
+# Prefer prebuilt wheels to dodge native builds; add -v for clear error logs
+# If you know you need to build from source, remove --prefer-binary
+RUN python -m pip install --prefer-binary -v -r requirements.txt
 
-# Copy the rest of your app
+# If openai is not in requirements.txt, uncomment:
+# RUN python -m pip install --prefer-binary -v openai
+
+# Copy the rest of the app
 COPY . .
 
 EXPOSE 8002
